@@ -8,7 +8,6 @@ import VacationForm from '@/components/VacationForm';
 import { DayInfo, VacationRequest, VacationLimit } from '@/types/vacation';
 import { getVacationsForMonth, getVacationsForDate, getVacationLimitsForMonth, getVacationLimitForDate, setVacationLimit } from '@/lib/vacationService';
 import { AnimatePresence, motion } from 'framer-motion';
-import AdminPanel from '@/components/AdminPanel';
 import VacationCalendar from '@/components/VacationCalendar';
 import axios from 'axios';
 
@@ -222,15 +221,6 @@ export default function Home() {
       <h1 className="text-4xl font-extrabold mb-8 text-center bg-gradient-to-r from-blue-600 to-indigo-800 text-transparent bg-clip-text drop-shadow-md">휴가 관리 시스템</h1>
       
       <div className="max-w-6xl mx-auto">
-        <div className="flex justify-end mb-4 space-x-2">
-          <button 
-            onClick={handleShowAdminPanel}
-            className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
-          >
-            관리자 설정
-          </button>
-        </div>
-        
         <div className="w-full max-w-4xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -265,7 +255,7 @@ export default function Home() {
 
       {/* 휴가 상세 정보 모달 */}
       <AnimatePresence>
-        {showDetails && selectedDate && !showForm && !showAdminPanel && (
+        {showDetails && selectedDate && !showForm && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -296,7 +286,7 @@ export default function Home() {
 
       {/* 휴가 신청 폼 모달 */}
       <AnimatePresence>
-        {showForm && !showAdminPanel && (
+        {showForm && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -321,36 +311,6 @@ export default function Home() {
                 onCancel={handleCloseVacationForm}
                 isSubmitting={isSubmitting}
                 setIsSubmitting={setIsSubmitting}
-              />
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* 관리자 설정 패널 모달 */}
-      <AnimatePresence>
-        {showAdminPanel && !showForm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 flex items-center justify-center p-4 z-50"
-            onClick={() => setShowAdminPanel(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="w-full max-w-2xl bg-white rounded-lg shadow-xl overflow-hidden"
-              onClick={e => e.stopPropagation()}
-            >
-              <AdminPanel
-                currentDate={currentDate}
-                vacationLimits={vacationLimits}
-                onClose={() => setShowAdminPanel(false)}
-                onLimitSet={handleLimitSet}
-                onUpdateSuccess={() => fetchMonthData()}
-                vacationDays={vacationDays}
               />
             </motion.div>
           </motion.div>
