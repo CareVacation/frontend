@@ -55,9 +55,14 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
         // 배열 형태의 응답인 경우
         apiData.forEach(item => {
           if (item.date) {
+            // 거부된 휴가는 총 인원 수에서 제외
+            const validVacations = Array.isArray(item.vacations) 
+              ? item.vacations.filter((v: VacationRequest) => v.status !== 'rejected') 
+              : [];
+              
             formattedData[item.date] = {
               date: item.date,
-              totalVacationers: Array.isArray(item.vacations) ? item.vacations.length : 0,
+              totalVacationers: validVacations.length,
               vacations: Array.isArray(item.vacations) ? item.vacations : []
             };
           }
@@ -67,9 +72,14 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
         Object.keys(apiData).forEach(dateKey => {
           const item = apiData[dateKey];
           if (item) {
+            // 거부된 휴가는 총 인원 수에서 제외
+            const validVacations = Array.isArray(item.vacations) 
+              ? item.vacations.filter((v: VacationRequest) => v.status !== 'rejected') 
+              : [];
+              
             formattedData[dateKey] = {
               date: dateKey,
-              totalVacationers: Array.isArray(item.vacations) ? item.vacations.length : 0,
+              totalVacationers: validVacations.length,
               vacations: Array.isArray(item.vacations) ? item.vacations : []
             };
           }
@@ -359,9 +369,19 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
                     {vacations.slice(0, 2).map((vacation, idx) => (
                       <div key={idx} className="flex items-center text-xs mb-0.5">
                         <div className={`w-1 h-1 rounded-full mr-1 flex-shrink-0
-                          ${vacation.status === 'approved' ? 'bg-green-500' : 'bg-yellow-500'}`}>
+                          ${vacation.status === 'approved' 
+                            ? 'bg-green-500' 
+                            : vacation.status === 'rejected'
+                            ? 'bg-red-500'
+                            : 'bg-yellow-500'}`}>
                         </div>
-                        <span className="truncate text-gray-700">{vacation.userName || `이름 없음`}</span>
+                        <span className={`truncate ${
+                          vacation.status === 'rejected'
+                            ? 'text-red-600 line-through'
+                            : 'text-gray-700'
+                        }`}>
+                          {vacation.userName || `이름 없음`}
+                        </span>
                       </div>
                     ))}
                     {vacations.length > 2 && (
@@ -422,6 +442,10 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
           <div className="flex items-center">
             <div className="w-1 h-1 bg-yellow-500 rounded-full mr-1.5"></div>
             <span className="text-xs text-gray-600">대기중</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-1 h-1 bg-red-500 rounded-full mr-1.5"></div>
+            <span className="text-xs text-gray-600">거부됨</span>
           </div>
         </div>
       </div>

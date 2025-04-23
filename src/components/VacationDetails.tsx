@@ -21,10 +21,12 @@ const VacationDetails: React.FC<VacationDetailsProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // 휴가 요청을 상태별로 정렬 (승인됨 -> 대기중)
+    // 휴가 요청을 상태별로 정렬 (승인됨 -> 대기중 -> 거부됨)
     const sorted = [...vacations].sort((a, b) => {
       if (a.status === 'approved' && b.status !== 'approved') return -1;
       if (a.status !== 'approved' && b.status === 'approved') return 1;
+      if (a.status === 'pending' && b.status === 'rejected') return -1;
+      if (a.status === 'rejected' && b.status === 'pending') return 1;
       return 0;
     });
     setSortedVacations(sorted);
@@ -46,7 +48,9 @@ const VacationDetails: React.FC<VacationDetailsProps> = ({
     setShowForm(false);
   };
 
-  const remainingSlots = maxPeople - vacations.length;
+  // 유효한(승인됨 또는 대기중) 휴가 수 계산
+  const validVacationCount = vacations.filter(v => v.status !== 'rejected').length;
+  const remainingSlots = maxPeople - validVacationCount;
   const isFull = remainingSlots <= 0;
 
   return (
@@ -110,7 +114,7 @@ const VacationDetails: React.FC<VacationDetailsProps> = ({
                   ) : (
                     <FiCheck className="mr-1" size={14} />
                   )}
-                  {vacations.length}/{maxPeople}명
+                  {validVacationCount}/{maxPeople}명
                 </div>
               </div>
               
@@ -129,9 +133,11 @@ const VacationDetails: React.FC<VacationDetailsProps> = ({
                           <span className={`text-xs px-2 py-1 rounded-full ${
                             vacation.status === 'approved' 
                               ? 'bg-green-100 text-green-600' 
-                              : 'bg-yellow-100 text-yellow-600'
+                              : vacation.status === 'pending' 
+                                ? 'bg-yellow-100 text-yellow-600'
+                                : 'bg-red-100 text-red-600'
                           }`}>
-                            {vacation.status === 'approved' ? '승인됨' : '대기중'}
+                            {vacation.status === 'approved' ? '승인됨' : vacation.status === 'pending' ? '대기중' : '거부됨'}
                           </span>
                         </div>
                         <div className="flex items-center text-sm text-gray-500">

@@ -63,8 +63,12 @@ export default function Home() {
           };
         }
         
-        days[date].count += 1;
         days[date].people.push(vacation);
+        
+        // 거부된 휴가는 카운트에 포함시키지 않음
+        if (vacation.status !== 'rejected') {
+          days[date].count += 1;
+        }
       });
       
       // 휴가 제한 상태 업데이트
