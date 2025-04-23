@@ -1,12 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  const id = params.id;
+// Next.js 15.3.1에서는 라우트 파라미터 처리 방식이 변경됨
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   
   if (!id) {
     return NextResponse.json(
@@ -26,10 +24,9 @@ export async function PUT(
       );
     }
     
-    // 휴가 상태를 '승인됨'으로 업데이트
+    // 휴가 상태 업데이트
     await updateDoc(vacationDocRef, {
-      status: 'approved',
-      updatedAt: new Date().toISOString()
+      status: 'approved'
     });
     
     return NextResponse.json(

@@ -1,12 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { doc, getDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  const id = params.id;
+// Next.js 15.3.1에서는 라우트 파라미터 처리 방식이 변경됨
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   
   if (!id) {
     return NextResponse.json(
@@ -26,7 +24,7 @@ export async function DELETE(
       );
     }
     
-    // 휴가 요청 삭제
+    // 휴가 문서 삭제
     await deleteDoc(vacationDocRef);
     
     return NextResponse.json(
