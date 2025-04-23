@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { format, addMonths, subMonths } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { DayInfo, VacationRequest, VacationLimit } from '@/types/vacation';
@@ -26,6 +26,10 @@ export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  
+  // 휴가 필터링 상태
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [allRequests, setAllRequests] = useState<VacationRequest[]>([]);
 
   // 초기 로딩 시 인증 확인
   useEffect(() => {
@@ -41,13 +45,21 @@ export default function AdminPage() {
   useEffect(() => {
     if (isAuthenticated) {
       fetchMonthData();
-      fetchPendingRequests();
+      fetchAllRequests();
     }
   }, [currentDate, isAuthenticated]);
 
+  // 필터링된 요청 목록 계산
+  const filteredRequests = useMemo(() => {
+    if (statusFilter === 'all') {
+      return allRequests;
+    }
+    return allRequests.filter(request => request.status === statusFilter);
+  }, [allRequests, statusFilter]);
+
   const fetchInitialData = () => {
     fetchMonthData();
-    fetchPendingRequests();
+    fetchAllRequests();
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -133,13 +145,15 @@ export default function AdminPage() {
     }
   };
 
-  const fetchPendingRequests = async () => {
+  const fetchAllRequests = async () => {
     try {
       const response = await axios.get('/api/vacation/pending');
-      setPendingRequests(response.data.requests || []);
+      setAllRequests(response.data.requests || []);
+      const pendingOnly = response.data.requests.filter((req: VacationRequest) => req.status === 'pending') || [];
+      setPendingRequests(pendingOnly);
     } catch (error) {
-      console.error('대기 중인 요청을 불러오는 중 오류 발생:', error);
-      showNotification('대기 중인 요청을 불러오는 중 오류가 발생했습니다.', 'error');
+      console.error('휴가 요청을 불러오는 중 오류 발생:', error);
+      showNotification('휴가 요청을 불러오는 중 오류가 발생했습니다.', 'error');
     }
   };
 
@@ -215,7 +229,7 @@ export default function AdminPage() {
       
       // 데이터 갱신
       await Promise.all([
-        fetchPendingRequests(),
+        fetchAllRequests(),
         fetchMonthData(),
         selectedDate ? fetchDateDetails(selectedDate) : Promise.resolve()
       ]);
@@ -236,7 +250,7 @@ export default function AdminPage() {
       
       // 데이터 갱신
       await Promise.all([
-        fetchPendingRequests(),
+        fetchAllRequests(),
         fetchMonthData(),
         selectedDate ? fetchDateDetails(selectedDate) : Promise.resolve()
       ]);
@@ -245,6 +259,29 @@ export default function AdminPage() {
     } catch (error) {
       console.error('휴가 거부 중 오류 발생:', error);
       showNotification('휴가 거부 중 오류가 발생했습니다.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const handleDeleteVacation = async (vacationId: string) => {
+    try {
+      if (confirm('정말로 이 휴가 신청을 삭제하시겠습니까?')) {
+        setIsLoading(true);
+        await axios.delete(`/api/vacation/delete/${vacationId}`);
+        
+        // 데이터 갱신
+        await Promise.all([
+          fetchAllRequests(),
+          fetchMonthData(),
+          selectedDate ? fetchDateDetails(selectedDate) : Promise.resolve()
+        ]);
+        
+        showNotification('휴가 신청이 삭제되었습니다.', 'success');
+      }
+    } catch (error) {
+      console.error('휴가 삭제 중 오류 발생:', error);
+      showNotification('휴가 삭제 중 오류가 발생했습니다.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -386,21 +423,66 @@ export default function AdminPage() {
 
             <div className="lg:col-span-1">
               <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-                <h2 className="text-2xl font-bold text-gray-800 mb-4">대기 중인 휴가 신청</h2>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-2xl font-bold text-gray-800">휴가 신청 목록</h2>
+                  <div className="inline-flex shadow-sm rounded-md">
+                    <button
+                      onClick={() => setStatusFilter('all')}
+                      className={`px-4 py-2 text-sm font-medium rounded-l-md ${
+                        statusFilter === 'all' 
+                          ? 'bg-indigo-600 text-white' 
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      } border border-gray-300`}
+                    >
+                      전체
+                    </button>
+                    <button
+                      onClick={() => setStatusFilter('pending')}
+                      className={`px-4 py-2 text-sm font-medium ${
+                        statusFilter === 'pending' 
+                          ? 'bg-yellow-500 text-white' 
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      } border-t border-b border-gray-300`}
+                    >
+                      대기중
+                    </button>
+                    <button
+                      onClick={() => setStatusFilter('approved')}
+                      className={`px-4 py-2 text-sm font-medium ${
+                        statusFilter === 'approved' 
+                          ? 'bg-green-600 text-white' 
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      } border-t border-b border-gray-300`}
+                    >
+                      승인됨
+                    </button>
+                    <button
+                      onClick={() => setStatusFilter('rejected')}
+                      className={`px-4 py-2 text-sm font-medium rounded-r-md ${
+                        statusFilter === 'rejected' 
+                          ? 'bg-red-600 text-white' 
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      } border border-gray-300`}
+                    >
+                      거부됨
+                    </button>
+                  </div>
+                </div>
+                
                 {isLoading ? (
                   <div className="flex justify-center items-center h-64">
                     <div className="animate-spin h-10 w-10 border-4 border-indigo-500 rounded-full border-t-transparent"></div>
                   </div>
-                ) : pendingRequests.length === 0 ? (
+                ) : filteredRequests.length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
-                    <p>대기 중인 휴가 신청이 없습니다</p>
+                    <p>해당 상태의 휴가 신청이 없습니다</p>
                   </div>
                 ) : (
                   <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                    {pendingRequests.map((request) => (
+                    {filteredRequests.map((request) => (
                       <div key={request.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                         <div className="flex justify-between items-start">
                           <div>
@@ -409,22 +491,42 @@ export default function AdminPage() {
                             <p className="mt-2 text-sm bg-gray-50 p-2 rounded">{request.reason}</p>
                             <p className="text-xs text-gray-500 mt-2">신청일: {format(new Date(request.createdAt), 'yyyy-MM-dd HH:mm')}</p>
                           </div>
-                          <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium">
-                            대기중
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            request.status === 'pending' 
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : request.status === 'approved'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-red-100 text-red-800'
+                          }`}>
+                            {request.status === 'pending' ? '대기중' : 
+                             request.status === 'approved' ? '승인됨' : '거부됨'}
                           </span>
                         </div>
                         <div className="mt-4 flex space-x-2 justify-end">
+                          {request.status === 'pending' && (
+                            <>
+                              <button
+                                onClick={() => handleRejectVacation(request.id)}
+                                className="px-3 py-1.5 border border-red-300 text-red-600 rounded hover:bg-red-50 transition-colors text-sm"
+                              >
+                                거부
+                              </button>
+                              <button
+                                onClick={() => handleApproveVacation(request.id)}
+                                className="px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm"
+                              >
+                                승인
+                              </button>
+                            </>
+                          )}
                           <button
-                            onClick={() => handleRejectVacation(request.id)}
-                            className="px-3 py-1.5 border border-red-300 text-red-600 rounded hover:bg-red-50 transition-colors text-sm"
+                            onClick={() => handleDeleteVacation(request.id)}
+                            className="px-3 py-1.5 bg-gray-700 text-white rounded hover:bg-gray-800 transition-colors text-sm flex items-center"
                           >
-                            거부
-                          </button>
-                          <button
-                            onClick={() => handleApproveVacation(request.id)}
-                            className="px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm"
-                          >
-                            승인
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                            삭제
                           </button>
                         </div>
                       </div>
