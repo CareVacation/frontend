@@ -3,16 +3,19 @@ import { VacationRequest, VacationLimit } from '@/types/vacation';
 import { getVacationsForMonth, getVacationLimitsForMonth } from '@/lib/vacationService';
 import { format, parse } from 'date-fns';
 
-// 기본 CORS 헤더 설정
-const corsHeaders = {
+// 기본 CORS 및 캐시 방지 헤더 설정
+const headers = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Cache-Control': 'no-store, max-age=0, must-revalidate',
+  'Pragma': 'no-cache',
+  'Expires': '0'
 };
 
 // OPTIONS 요청에 대한 핸들러 추가
 export async function OPTIONS() {
-  return NextResponse.json({}, { headers: corsHeaders });
+  return NextResponse.json({}, { headers });
 }
 
 export async function GET(request: Request) {
@@ -28,7 +31,7 @@ export async function GET(request: Request) {
       console.error('시작일 또는 종료일이 누락됨');
       return NextResponse.json(
         { error: '시작일과 종료일 파라미터가 필요합니다.' },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers }
       );
     }
     
@@ -36,7 +39,7 @@ export async function GET(request: Request) {
       console.error('날짜 형식 오류');
       return NextResponse.json(
         { error: '날짜는 YYYY-MM-DD 형식이어야 합니다.' },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers }
       );
     }
     
@@ -93,7 +96,7 @@ export async function GET(request: Request) {
     console.log(`캘린더 데이터 조회 성공: ${Object.keys(result).length}일의 데이터 반환`);
     
     return NextResponse.json(result, {
-      headers: corsHeaders
+      headers
     });
   } catch (error) {
     console.error('캘린더 데이터 조회 중 오류:', error);
@@ -109,7 +112,7 @@ export async function GET(request: Request) {
         error: '캘린더 데이터를 가져오는데 실패했습니다.',
         message: error instanceof Error ? error.message : '알 수 없는 오류'
       },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers }
     );
   }
 } 

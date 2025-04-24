@@ -2,16 +2,19 @@ import { NextResponse } from 'next/server';
 import { VacationRequest } from '@/types/vacation';
 import { getVacationsForDate, getVacationLimitForDate } from '@/lib/vacationService';
 
-// 기본 CORS 헤더 설정
-const corsHeaders = {
+// 기본 CORS 및 캐시 방지 헤더 설정
+const headers = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Cache-Control': 'no-store, max-age=0, must-revalidate',
+  'Pragma': 'no-cache',
+  'Expires': '0'
 };
 
 // OPTIONS 요청에 대한 핸들러 추가
 export async function OPTIONS() {
-  return NextResponse.json({}, { headers: corsHeaders });
+  return NextResponse.json({}, { headers });
 }
 
 export async function GET(
@@ -27,7 +30,7 @@ export async function GET(
       console.error(`잘못된 날짜 형식: ${date}`);
       return NextResponse.json(
         { error: '올바른 날짜 형식(YYYY-MM-DD)이 필요합니다.' },
-        { status: 400, headers: corsHeaders }
+        { status: 400, headers }
       );
     }
     
@@ -43,7 +46,7 @@ export async function GET(
     const maxPeople = limitData?.maxPeople ?? 3;
     
     console.log(`날짜 ${date}의 휴가 정보 조회 성공:`, 
-      JSON.stringify({ count: vacations.length })
+      JSON.stringify({ count: vacations.length, maxPeople })
     );
     
     // 성공 응답
@@ -52,7 +55,7 @@ export async function GET(
       vacations,
       totalCount: vacations.length,
       maxPeople
-    }, { headers: corsHeaders });
+    }, { headers });
   } catch (error) {
     // 자세한 에러 로깅
     console.error('날짜별 휴가 정보 조회 중 오류:', error);
@@ -69,7 +72,7 @@ export async function GET(
         error: '휴가 정보를 가져오는데 실패했습니다.',
         message: error instanceof Error ? error.message : '알 수 없는 오류',
       },
-      { status: 500, headers: corsHeaders }
+      { status: 500, headers }
     );
   }
 } 

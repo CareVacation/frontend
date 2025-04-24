@@ -107,6 +107,11 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
       
       console.log('변환된 캘린더 데이터:', formattedData);
       setCalendarData(formattedData);
+      
+      // 선택된 날짜가 있다면 해당 날짜의 데이터를 다시 가져옴
+      if (selectedDate) {
+        fetchSelectedDateData(selectedDate);
+      }
     } catch (error) {
       console.error('캘린더 데이터 로딩 오류:', error);
       
@@ -117,6 +122,46 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // 선택된 날짜의 데이터를 가져오는 함수
+  const fetchSelectedDateData = async (date: Date) => {
+    try {
+      const formattedDate = format(date, 'yyyy-MM-dd');
+      console.log(`선택된 날짜 데이터 가져오기: ${formattedDate}`);
+      
+      const response = await fetch(`/api/vacation/date/${formattedDate}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API 응답 오류: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('날짜 상세 데이터:', data);
+      
+      // 데이터 업데이트
+      if (data && data.vacations) {
+        const newCalendarData = { ...calendarData };
+        const validVacations = data.vacations.filter((v: VacationRequest) => v.status !== 'rejected');
+        
+        newCalendarData[formattedDate] = {
+          date: formattedDate,
+          totalVacationers: validVacations.length,
+          vacations: data.vacations,
+          maxPeople: data.maxPeople || 3
+        };
+        
+        setCalendarData(newCalendarData);
+      }
+    } catch (error) {
+      console.error('선택된 날짜 데이터 로딩 오류:', error);
     }
   };
 
@@ -133,6 +178,9 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
     }
     
     setSelectedDate(date);
+    
+    // 선택된 날짜 데이터 가져오기
+    fetchSelectedDateData(date);
     
     // page.tsx의 onDateSelect 함수를 호출하여 거기서 VacationDetails 모달을 표시
     if (onDateSelect) {
@@ -252,10 +300,8 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
 
   const handleCloseAdminPanel = () => {
     setShowAdminPanel(false);
-    // 패널이 닫힐 때 데이터 새로고침
-    setTimeout(() => {
-      fetchCalendarData();
-    }, 300);
+    // 패널이 닫힐 때 데이터 즉시 갱신
+    fetchCalendarData();
   };
 
   return (

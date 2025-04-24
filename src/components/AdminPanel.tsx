@@ -71,6 +71,7 @@ const AdminPanel = ({ currentDate, onClose, onUpdateSuccess, vacationLimits, onL
     setError('');
     
     try {
+      console.log('휴가 제한 저장 시작...');
       const response = await fetch('/api/vacation/limits', {
         method: 'POST',
         headers: {
@@ -89,7 +90,7 @@ const AdminPanel = ({ currentDate, onClose, onUpdateSuccess, vacationLimits, onL
       // 확실히 onUpdateSuccess 함수가 호출되도록 함
       if (typeof onUpdateSuccess === 'function') {
         try {
-          await onUpdateSuccess();
+          onUpdateSuccess();
           console.log('데이터 갱신 완료');
         } catch (updateError) {
           console.error('데이터 갱신 중 오류:', updateError);

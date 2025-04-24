@@ -8,7 +8,6 @@ import { getVacationsForMonth, getVacationLimitsForMonth, setVacationLimit } fro
 import { motion, AnimatePresence } from 'framer-motion';
 import VacationCalendar from '@/components/VacationCalendar';
 import AdminPanel from '@/components/AdminPanel';
-import axios from 'axios';
 
 export default function AdminPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -151,9 +150,22 @@ export default function AdminPage() {
 
   const fetchAllRequests = async () => {
     try {
-      const response = await axios.get('/api/vacation/pending');
-      setAllRequests(response.data.requests || []);
-      const pendingOnly = response.data.requests.filter((req: VacationRequest) => req.status === 'pending') || [];
+      // axios 대신 fetch 사용하여 캐시 방지
+      const response = await fetch('/api/vacation/pending', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store, max-age=0, must-revalidate'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API 응답 오류: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      setAllRequests(data.requests || []);
+      const pendingOnly = data.requests.filter((req: VacationRequest) => req.status === 'pending') || [];
       setPendingRequests(pendingOnly);
     } catch (error) {
       console.error('휴가 요청을 불러오는 중 오류 발생:', error);
@@ -164,19 +176,34 @@ export default function AdminPage() {
   const fetchDateDetails = async (date: Date) => {
     try {
       const formattedDate = format(date, 'yyyy-MM-dd');
-      const response = await axios.get(`/api/vacation/date/${formattedDate}`);
+      
+      // fetch API로 변경
+      const response = await fetch(`/api/vacation/date/${formattedDate}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API 응답 오류: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
       
       let vacations = [];
-      if (response.data && Array.isArray(response.data.vacations)) {
-        vacations = response.data.vacations;
-      } else if (response.data && typeof response.data === 'object') {
-        if (Array.isArray(response.data)) {
-          vacations = response.data;
+      if (data && Array.isArray(data.vacations)) {
+        vacations = data.vacations;
+      } else if (data && typeof data === 'object') {
+        if (Array.isArray(data)) {
+          vacations = data;
         } else {
-          vacations = response.data.vacations || [];
+          vacations = data.vacations || [];
         }
       }
       
+      console.log(`${formattedDate} 날짜의 휴가 데이터:`, vacations);
       setDateVacations(vacations);
     } catch (error) {
       console.error('상세 정보 가져오기 오류:', error);
@@ -200,6 +227,16 @@ export default function AdminPage() {
     
     try {
       await fetchDateDetails(date);
+      
+      // 특정 날짜 선택 시 필터를 해당 날짜의 데이터로 변경
+      const formattedDate = format(date, 'yyyy-MM-dd');
+      const dateFilteredRequests = allRequests.filter(req => req.date === formattedDate);
+      setStatusFilter('all'); // 상태 필터 초기화
+      
+      // 임시로 모든 요청 목록을 선택된 날짜 필터링한 결과로 교체
+      setAllRequests(dateFilteredRequests);
+      
+      console.log(`${formattedDate} 날짜 필터 적용됨:`, dateFilteredRequests.length);
     } catch (error) {
       console.error('날짜 상세 정보를 불러오는 중 오류 발생:', error);
     } finally {
@@ -220,6 +257,20 @@ export default function AdminPage() {
       await setVacationLimit(date, maxPeople);
       // 제한 설정 후 데이터 즉시 갱신
       await fetchMonthData();
+      // 선택된 날짜가 있다면 해당 날짜 데이터도 갱신
+      if (selectedDate) {
+        await fetchDateDetails(selectedDate);
+        
+        // 전체 휴가 요청 목록도 갱신
+        await fetchAllRequests();
+        
+        // 현재 선택된 날짜에 대한 필터 다시 적용
+        if (selectedDate) {
+          const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+          const dateFilteredRequests = allRequests.filter(req => req.date === formattedDate);
+          setAllRequests(dateFilteredRequests);
+        }
+      }
       showNotification('휴가 제한 인원이 설정되었습니다.', 'success');
     } catch (error) {
       console.error('휴가 제한 설정 중 오류 발생:', error);
@@ -230,7 +281,19 @@ export default function AdminPage() {
   const handleApproveVacation = async (vacationId: string) => {
     try {
       setIsLoading(true);
-      await axios.put(`/api/vacation/approve/${vacationId}`);
+      
+      // axios 대신 fetch 사용
+      const response = await fetch(`/api/vacation/approve/${vacationId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store, max-age=0, must-revalidate'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API 응답 오류: ${response.status} ${response.statusText}`);
+      }
       
       // 데이터 갱신
       await Promise.all([
@@ -251,7 +314,19 @@ export default function AdminPage() {
   const handleRejectVacation = async (vacationId: string) => {
     try {
       setIsLoading(true);
-      await axios.put(`/api/vacation/reject/${vacationId}`);
+      
+      // axios 대신 fetch 사용
+      const response = await fetch(`/api/vacation/reject/${vacationId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store, max-age=0, must-revalidate'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API 응답 오류: ${response.status} ${response.statusText}`);
+      }
       
       // 데이터 갱신
       await Promise.all([
@@ -273,7 +348,19 @@ export default function AdminPage() {
     try {
       if (confirm('정말로 이 휴가 신청을 삭제하시겠습니까?')) {
         setIsLoading(true);
-        await axios.delete(`/api/vacation/delete/${vacationId}`);
+        
+        // axios 대신 fetch 사용
+        const response = await fetch(`/api/vacation/delete/${vacationId}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-store, max-age=0, must-revalidate'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`API 응답 오류: ${response.status} ${response.statusText}`);
+        }
         
         // 데이터 갱신
         await Promise.all([
@@ -370,6 +457,15 @@ export default function AdminPage() {
     );
   };
 
+  // 필터 초기화 함수 추가
+  const resetFilter = async () => {
+    // 모든 요청을 다시 불러오기
+    await fetchAllRequests();
+    setStatusFilter('all');
+    setSelectedDate(null);
+    setShowDetails(false);
+  };
+
   // 관리자 페이지 내용 렌더링
   return (
     <>
@@ -395,7 +491,7 @@ export default function AdminPage() {
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 transition-colors flex items-center gap-2"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V4a1 1 0 00-1-1H3zm5 4a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1zm0 4a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1zm8-6a1 1 0 00-1-1h-2a1 1 0 000 2h2a1 1 0 001-1zm0 4a1 1 0 00-1-1h-2a1 1 0 000 2h2a1 1 0 001-1z" clipRule="evenodd" />
+                    <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V4a1 1 0 00-1-1H3zm5 4a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1-1h-2a1 1 0 000 2h2a1 1 0 001-1zm0 4a1 1 0 00-1-1h-2a1 1 0 000 2h2a1 1 0 001-1z" clipRule="evenodd" />
                   </svg>
                   로그아웃
                 </button>
@@ -408,15 +504,26 @@ export default function AdminPage() {
               <div className="bg-white rounded-xl shadow-md p-6 mb-6">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-2xl font-bold text-gray-800">휴가 캘린더</h2>
-                  <button 
-                    onClick={handleShowLimitPanel}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center gap-2"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" />
-                    </svg>
-                    휴가 제한 설정
-                  </button>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={handleShowLimitPanel}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" />
+                      </svg>
+                      휴가 제한 설정
+                    </button>
+                    <button 
+                      onClick={resetFilter}
+                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center gap-2"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                      </svg>
+                      필터 초기화
+                    </button>
+                  </div>
                 </div>
                 <VacationCalendar
                   onDateSelect={handleDateSelect}
@@ -429,7 +536,11 @@ export default function AdminPage() {
             <div className="lg:col-span-1">
               <div className="bg-white rounded-xl shadow-md p-6 mb-6">
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-2xl font-bold text-gray-800">휴가 신청 목록</h2>
+                  <h2 className="text-2xl font-bold text-gray-800">
+                    {selectedDate 
+                      ? `${format(selectedDate, 'yyyy년 MM월 dd일', { locale: ko })} 휴가` 
+                      : '휴가 신청 목록'}
+                  </h2>
                   <div className="inline-flex shadow-sm rounded-md">
                     <button
                       onClick={() => setStatusFilter('all')}
@@ -483,7 +594,22 @@ export default function AdminPage() {
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
-                    <p>해당 상태의 휴가 신청이 없습니다</p>
+                    <p>
+                      {selectedDate 
+                        ? `${format(selectedDate, 'yyyy년 MM월 dd일', { locale: ko })}에 ${
+                            statusFilter === 'all' ? '휴가 신청이 없습니다' : 
+                            statusFilter === 'pending' ? '대기 중인 휴가 신청이 없습니다' :
+                            statusFilter === 'approved' ? '승인된 휴가 신청이 없습니다' : 
+                            '거부된 휴가 신청이 없습니다'
+                          }`
+                        : `${
+                            statusFilter === 'all' ? '휴가 신청이 없습니다' : 
+                            statusFilter === 'pending' ? '대기 중인 휴가 신청이 없습니다' :
+                            statusFilter === 'approved' ? '승인된 휴가 신청이 없습니다' : 
+                            '거부된 휴가 신청이 없습니다'
+                          }`
+                      }
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
@@ -529,7 +655,7 @@ export default function AdminPage() {
                             className="px-3 py-1.5 bg-gray-700 text-white rounded hover:bg-gray-800 transition-colors text-sm flex items-center"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1-1h-2a1 1 0 000 2h2a1 1 0 001-1zm0 4a1 1 0 00-1-1h-2a1 1 0 000 2h2a1 1 0 001-1z" clipRule="evenodd" />
                             </svg>
                             삭제
                           </button>
