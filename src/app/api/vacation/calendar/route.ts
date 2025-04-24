@@ -53,7 +53,12 @@ export async function GET(request: Request) {
     const vacations = await getVacationsForMonth(year, month);
     
     // 연/월/일 별로 그룹화된 결과 생성
-    const result: Record<string, any> = {};
+    interface CalendarDayData {
+      date: string;
+      vacations: VacationRequest[];
+      totalVacationers: number;
+    }
+    const result: Record<string, CalendarDayData> = {};
     
     vacations.forEach(vacation => {
       const date = vacation.date;
