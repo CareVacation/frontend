@@ -93,7 +93,7 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
             // 총 휴가자 수 (API에서 제공하거나 계산)
             const totalVacationers = dateData.totalVacationers !== undefined 
               ? dateData.totalVacationers 
-              : vacations.filter((v: any) => v.status !== 'rejected').length;
+              : vacations.filter((v: VacationRequest) => v.status !== 'rejected').length;
             
             // 데이터 저장
             formattedData[dateKey] = {
