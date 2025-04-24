@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { VacationRequest } from '@/types/vacation';
-import { getVacationsForDate } from '@/lib/vacationService';
+import { getVacationsForDate, getVacationLimitForDate } from '@/lib/vacationService';
 
 // 기본 CORS 헤더 설정
 const corsHeaders = {
@@ -34,8 +34,13 @@ export async function GET(
     // 문자열 날짜를 Date 객체로 변환
     const dateObj = new Date(date);
     
-    // Firebase에서 해당 날짜의 휴가 정보 가져오기
-    const vacations = await getVacationsForDate(dateObj);
+    // Firebase에서 해당 날짜의 휴가 정보 및 제한 가져오기
+    const [vacations, limitData] = await Promise.all([
+      getVacationsForDate(dateObj),
+      getVacationLimitForDate(dateObj)
+    ]);
+    
+    const maxPeople = limitData?.maxPeople ?? 3;
     
     console.log(`날짜 ${date}의 휴가 정보 조회 성공:`, 
       JSON.stringify({ count: vacations.length })
@@ -45,7 +50,8 @@ export async function GET(
     return NextResponse.json({ 
       date,
       vacations,
-      totalCount: vacations.length
+      totalCount: vacations.length,
+      maxPeople
     }, { headers: corsHeaders });
   } catch (error) {
     // 자세한 에러 로깅

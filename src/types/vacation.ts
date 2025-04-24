@@ -64,5 +64,6 @@ export interface VacationData {
     totalVacationers: number;
     vacations: VacationRequest[];
     people?: VacationRequest[]; // API 응답 구조와의 호환성
+    maxPeople?: number; // 각 날짜별 최대 인원 제한
   };
 } 

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { DayInfo, VacationRequest, VacationLimit } from '@/types/vacation';
+import { VacationRequest, VacationLimit } from '@/types/vacation';
 import { getVacationsForMonth, getVacationLimitsForMonth } from '@/lib/vacationService';
 import { format, parse } from 'date-fns';
 
@@ -50,13 +50,23 @@ export async function GET(request: Request) {
     const year = startDateObj.getFullYear();
     const month = startDateObj.getMonth();
     
-    const vacations = await getVacationsForMonth(year, month);
+    const [vacations, limits] = await Promise.all([
+      getVacationsForMonth(year, month),
+      getVacationLimitsForMonth(year, month)
+    ]);
+    
+    // 날짜별 limit 맵
+    const limitsMap: Record<string, number> = {};
+    limits.forEach(l => {
+      limitsMap[l.date] = l.maxPeople;
+    });
     
     // 연/월/일 별로 그룹화된 결과 생성
     interface CalendarDayData {
       date: string;
       vacations: VacationRequest[];
       totalVacationers: number;
+      maxPeople: number;
     }
     const result: Record<string, CalendarDayData> = {};
     
@@ -67,8 +77,9 @@ export async function GET(request: Request) {
         result[date] = {
           date,
           vacations: [],
-          totalVacationers: 0
-        };
+          totalVacationers: 0,
+          maxPeople: limitsMap[date] ?? 3
+        } as CalendarDayData;
       }
       
       result[date].vacations.push(vacation);

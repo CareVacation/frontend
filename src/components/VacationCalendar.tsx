@@ -80,7 +80,8 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
             formattedData[item.date] = {
               date: item.date,
               totalVacationers: validVacations.length,
-              vacations: Array.isArray(item.vacations) ? item.vacations : []
+              vacations: Array.isArray(item.vacations) ? item.vacations : [],
+              maxPeople: item.maxPeople || 3
             };
           }
         });
@@ -97,7 +98,8 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
             formattedData[dateKey] = {
               date: dateKey,
               totalVacationers: validVacations.length,
-              vacations: Array.isArray(item.vacations) ? item.vacations : []
+              vacations: Array.isArray(item.vacations) ? item.vacations : [],
+              maxPeople: item.maxPeople || 3
             };
           }
         });
@@ -150,6 +152,7 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
     const dateKey = format(date, 'yyyy-MM-dd');
     const dayData = calendarData[dateKey];
     const vacationersCount = dayData?.totalVacationers || 0;
+    const maxPeople = dayData?.maxPeople || 3;
     
     const isWeekend = date.getDay() === 0 || date.getDay() === 6;
     
@@ -172,13 +175,13 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
     
     if (vacationersCount === 0) {
       return {
-        bg: 'hover:bg-green-50',
-        text: 'text-gray-700',
+        bg: 'bg-green-100 hover:bg-green-200',
+        text: 'text-green-800',
         border: 'border-transparent',
         status: '가능'
       };
-    } else if (vacationersCount < maxPeopleAllowed) {
-      const ratio = vacationersCount / maxPeopleAllowed;
+    } else if (vacationersCount < maxPeople) {
+      const ratio = vacationersCount / maxPeople;
       if (ratio < 0.5) {
         return {
           bg: 'bg-green-50 hover:bg-green-100',
@@ -194,7 +197,7 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
           status: '제한'
         };
       }
-    } else if (vacationersCount === maxPeopleAllowed) {
+    } else if (vacationersCount === maxPeople) {
       return {
         bg: 'bg-orange-50 hover:bg-orange-100',
         text: 'text-orange-700',
@@ -345,6 +348,7 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
             const dayData = calendarData[dateKey];
             const vacationersCount = dayData?.totalVacationers || 0;
             const vacations = getDayVacations(day);
+            const maxPeople = dayData?.maxPeople || 3;
             
             return (
               <motion.div
@@ -370,18 +374,18 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
                     )}
                   </div>
                   
-                  {isCurrentMonth && vacationersCount > 0 && (
+                  {isCurrentMonth && (
                     <span className={`
                       text-[6px] sm:text-xs font-medium px-0.5 sm:px-1.5 py-0 sm:py-0.5 rounded-full inline-flex items-center
                       ${
-                        vacationersCount >= maxPeopleAllowed 
+                        vacationersCount >= maxPeople
                           ? 'bg-red-100 text-red-600' 
-                          : vacationersCount >= maxPeopleAllowed * 0.7
+                          : vacationersCount >= maxPeople * 0.7
                             ? 'bg-orange-100 text-orange-600'
                             : 'bg-green-100 text-green-600'
                       }
                     `}>
-                      {vacationersCount}/{maxPeopleAllowed}
+                      {vacationersCount}/{maxPeople}
                     </span>
                   )}
                 </div>
@@ -419,13 +423,13 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
                 )}
                 
                 {/* 인원 제한 상태 표시 */}
-                {isCurrentMonth && vacationersCount > 0 && (
+                {isCurrentMonth && (
                   <div className="absolute bottom-0 sm:bottom-1 right-0 sm:right-1.5">
-                    {vacationersCount >= maxPeopleAllowed ? (
+                    {vacationersCount >= maxPeople ? (
                       <div className="text-[6px] sm:text-xs bg-red-500 text-white rounded-full w-2 h-2 sm:w-4 sm:h-4 flex items-center justify-center">
                         <FiAlertCircle size={6} className="sm:w-[10px] sm:h-[10px]" />
                       </div>
-                    ) : vacationersCount >= maxPeopleAllowed * 0.7 ? (
+                    ) : vacationersCount >= maxPeople * 0.7 ? (
                       <div className="text-[6px] sm:text-xs bg-orange-500 text-white rounded-full w-2 h-2 sm:w-4 sm:h-4 flex items-center justify-center">
                         <FiAlertCircle size={6} className="sm:w-[10px] sm:h-[10px]" />
                       </div>

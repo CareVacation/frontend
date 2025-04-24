@@ -46,7 +46,7 @@ const AdminPanel = ({ currentDate, onClose, onUpdateSuccess, vacationLimits, onL
         allLimits.push({
           id: existingLimit?.id,
           date: dateStr,
-          maxPeople: existingLimit?.maxPeople || 0,
+          maxPeople: existingLimit?.maxPeople || 3,
           createdAt: existingLimit?.createdAt
         });
         
