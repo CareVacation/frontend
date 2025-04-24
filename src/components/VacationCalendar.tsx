@@ -398,10 +398,10 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
                             ? 'bg-red-100 text-red-600'
                             : 'bg-yellow-100 text-yellow-600'}`}>
                           {vacation.status === 'approved' 
-                            ? '승' 
+                            ? '승인' 
                             : vacation.status === 'rejected'
-                            ? '거'
-                            : '대'}
+                            ? '거절'
+                            : '대기'}
                         </span>
                         <span className={`truncate max-w-[60%] ${
                           vacation.status === 'rejected'
@@ -464,15 +464,15 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
             <span className="text-[9px] sm:text-xs text-gray-600">마감/초과</span>
           </div>
           <div className="flex items-center ml-2 sm:ml-4">
-            <span className="text-[8px] sm:text-xs px-0.5 sm:px-1 py-0 sm:py-0.5 bg-green-100 text-green-600 rounded-full mr-1 sm:mr-1.5">승</span>
+            <span className="text-[8px] sm:text-xs px-0.5 sm:px-1 py-0 sm:py-0.5 bg-green-100 text-green-600 rounded-full mr-1 sm:mr-1.5">승인</span>
             <span className="text-[9px] sm:text-xs text-gray-600">승인됨</span>
           </div>
           <div className="flex items-center">
-            <span className="text-[8px] sm:text-xs px-0.5 sm:px-1 py-0 sm:py-0.5 bg-yellow-100 text-yellow-600 rounded-full mr-1 sm:mr-1.5">대</span>
+            <span className="text-[8px] sm:text-xs px-0.5 sm:px-1 py-0 sm:py-0.5 bg-yellow-100 text-yellow-600 rounded-full mr-1 sm:mr-1.5">대기</span>
             <span className="text-[9px] sm:text-xs text-gray-600">대기중</span>
           </div>
           <div className="flex items-center">
-            <span className="text-[8px] sm:text-xs px-0.5 sm:px-1 py-0 sm:py-0.5 bg-red-100 text-red-600 rounded-full mr-1 sm:mr-1.5">거</span>
+            <span className="text-[8px] sm:text-xs px-0.5 sm:px-1 py-0 sm:py-0.5 bg-red-100 text-red-600 rounded-full mr-1 sm:mr-1.5">거절</span>
             <span className="text-[9px] sm:text-xs text-gray-600">거부됨</span>
           </div>
         </div>
