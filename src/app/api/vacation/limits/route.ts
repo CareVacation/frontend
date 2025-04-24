@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { VacationLimit } from '@/types/vacation';
-import { getVacationLimitsForMonth, setVacationLimit } from '@/lib/vacationService';
+import { getVacationLimitsForMonth, setVacationLimit, getVacationLimits } from '@/lib/vacationService';
 import { format, parseISO } from 'date-fns';
+import { parse } from 'date-fns';
 
 // 기본 CORS 및 캐시 방지 헤더 설정
 const headers = {
@@ -18,71 +19,89 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers });
 }
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const start = searchParams.get('start');
-  const end = searchParams.get('end');
-  
-  if (!start || !end) {
-    return NextResponse.json(
-      { error: '시작일과 종료일이 필요합니다.' },
-      { status: 400, headers }
-    );
-  }
-  
+function isValidDateFormat(dateStr: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(dateStr);
+}
+
+// GET: 기간 내 휴가 제한 조회
+export async function GET(request: NextRequest) {
   try {
-    // 시작일의 연도와 월을 추출
-    const startDate = parseISO(start);
-    const year = startDate.getFullYear();
-    const month = startDate.getMonth();
+    const { searchParams } = new URL(request.url);
+    const start = searchParams.get('start');
+    const end = searchParams.get('end');
+
+    // 날짜 유효성 검사
+    if (!start || !end || !isValidDateFormat(start) || !isValidDateFormat(end)) {
+      console.warn(`[API] 휴가 제한 조회 요청 실패: 잘못된 날짜 형식 (start: ${start}, end: ${end})`);
+      return NextResponse.json(
+        { error: '유효한 start 및 end 날짜가 필요합니다 (YYYY-MM-DD 형식)' },
+        { status: 400 }
+      );
+    }
+
+    console.log(`[API] 휴가 제한 조회 요청: ${start} ~ ${end}`);
+    const startDate = new Date(start);
+    const endDate = new Date(end);
     
-    // Firebase에서 실제 데이터 가져오기
-    const limitsData = await getVacationLimitsForMonth(year, month);
+    const limits = await getVacationLimits(startDate, endDate);
+    console.log(`[API] 휴가 제한 조회 결과: ${limits.length}건 반환`);
     
-    return NextResponse.json({ limits: limitsData }, { headers });
+    return NextResponse.json({ limits });
   } catch (error) {
-    console.error('휴가 제한 데이터 조회 중 오류:', error);
+    console.error('[API] 휴가 제한 조회 오류:', error);
     return NextResponse.json(
-      { error: '휴가 제한 데이터를 가져오는데 실패했습니다.' },
-      { status: 500, headers }
+      { error: '휴가 제한 조회 중 오류가 발생했습니다' },
+      { status: 500 }
     );
   }
 }
 
-export async function POST(request: Request) {
+// POST: 휴가 제한 설정
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { limits } = body;
-    
+
+    // 유효성 검사
     if (!limits || !Array.isArray(limits)) {
+      console.warn('[API] 휴가 제한 설정 요청 실패: 유효한 limits 배열이 없음');
       return NextResponse.json(
-        { error: '유효한 데이터가 전달되지 않았습니다.' },
-        { status: 400, headers }
+        { error: '유효한 limits 배열이 필요합니다' },
+        { status: 400 }
       );
     }
-    
-    // Firebase에 데이터 저장하기
-    const savedLimits = await Promise.all(
-      limits.map(async (limit: VacationLimit) => {
-        if (!limit.date || typeof limit.maxPeople !== 'number') {
-          throw new Error(`유효하지 않은 데이터: ${JSON.stringify(limit)}`);
+
+    console.log(`[API] 휴가 제한 설정 요청: ${limits.length}건 처리 시작`);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const item of limits) {
+      try {
+        // 각 항목 유효성 검사
+        if (!item.date || !isValidDateFormat(item.date) || typeof item.maxPeople !== 'number') {
+          console.warn(`[API] 휴가 제한 항목 유효성 검사 실패: ${JSON.stringify(item)}`);
+          errorCount++;
+          continue;
         }
-        
-        const date = parseISO(limit.date);
-        const result = await setVacationLimit(date, limit.maxPeople);
-        return result;
-      })
-    );
-    
-    return NextResponse.json({ 
-      success: true,
-      savedLimits
-    }, { headers });
+
+        console.log(`[API] 휴가 제한 설정 처리중: ${item.date} (최대 ${item.maxPeople}명)`);
+        await setVacationLimit(item.date, item.maxPeople);
+        successCount++;
+      } catch (itemError) {
+        console.error(`[API] 휴가 제한 설정 항목 오류 (${item?.date || 'unknown'}):`, itemError);
+        errorCount++;
+      }
+    }
+
+    console.log(`[API] 휴가 제한 설정 완료: 성공 ${successCount}건, 실패 ${errorCount}건`);
+    return NextResponse.json({
+      message: `${successCount}개의 휴가 제한이 성공적으로 저장되었습니다.${errorCount > 0 ? ` (${errorCount}개 실패)` : ''}`
+    });
   } catch (error) {
-    console.error('휴가 제한 저장 중 오류:', error);
+    console.error('[API] 휴가 제한 설정 요청 처리 오류:', error);
     return NextResponse.json(
-      { error: '휴가 제한 저장에 실패했습니다.' },
-      { status: 500, headers }
+      { error: '휴가 제한 설정 중 오류가 발생했습니다' },
+      { status: 500 }
     );
   }
 } 

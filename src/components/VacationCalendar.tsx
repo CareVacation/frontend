@@ -34,7 +34,7 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
   const fetchCalendarData = async () => {
     setIsLoading(true);
     try {
-      console.log(`API 호출: startDate=${format(monthStart, 'yyyy-MM-dd')}, endDate=${format(monthEnd, 'yyyy-MM-dd')}`);
+      console.log(`캘린더 데이터 가져오기 시작: ${new Date().toISOString()}`);
       
       // 현재 호스트 기반 절대 URL 사용
       const apiUrl = `/api/vacation/calendar`;
@@ -42,17 +42,23 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
       // 검색 파라미터 추가
       const params = new URLSearchParams({
         startDate: format(monthStart, 'yyyy-MM-dd'),
-        endDate: format(monthEnd, 'yyyy-MM-dd')
+        endDate: format(monthEnd, 'yyyy-MM-dd'),
+        // 캐시 방지를 위한 타임스탬프 추가 (더 세분화된 값)
+        _t: Date.now().toString(),
+        _r: Math.random().toString().substring(2, 8) // 추가 랜덤값
       });
       
       console.log('캘린더 API 요청 URL:', `${apiUrl}?${params}`);
       
-      // fetch API 사용
+      // fetch API 사용 - 캐시 방지 헤더 강화
       const response = await fetch(`${apiUrl}?${params}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache'
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+          'X-Request-Time': new Date().toISOString() // 추가 헤더
         }
       });
       
@@ -62,47 +68,46 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
       
       // 응답 데이터 파싱
       const apiData = await response.json();
-      console.log('API 응답 데이터:', apiData);
+      console.log('API 응답 데이터 수신:', Object.keys(apiData).length, '개 날짜');
       
       // API 응답을 VacationData 형식으로 변환
-      const formattedData: VacationData = {};
+      const formattedData: VacationData = { ...calendarData }; // 기존 데이터 유지
       
-      // API 응답 구조에 따라 데이터 처리
-      if (Array.isArray(apiData)) {
-        // 배열 형태의 응답인 경우
-        apiData.forEach(item => {
-          if (item.date) {
-            // 거부된 휴가는 총 인원 수에서 제외
-            const validVacations = Array.isArray(item.vacations) 
-              ? item.vacations.filter((v: VacationRequest) => v.status !== 'rejected') 
-              : [];
-              
-            formattedData[item.date] = {
-              date: item.date,
-              totalVacationers: validVacations.length,
-              vacations: Array.isArray(item.vacations) ? item.vacations : [],
-              maxPeople: item.maxPeople || 3
-            };
-          }
-        });
-      } else if (typeof apiData === 'object' && apiData !== null) {
-        // 객체 형태의 응답인 경우
+      // API 응답 구조가 객체 형태로 변경됨: { 'YYYY-MM-DD': { date, vacations, totalVacationers, maxPeople }, ... }
+      if (typeof apiData === 'object' && apiData !== null) {
+        // 각 날짜 항목 처리
         Object.keys(apiData).forEach(dateKey => {
           const item = apiData[dateKey];
           if (item) {
-            // 거부된 휴가는 총 인원 수에서 제외
+            console.log(`날짜 ${dateKey} 데이터 처리:`, item);
+            
+            // 거부된 휴가는 총 인원 수에서 제외 (API에서 이미 처리했지만 안전을 위해 재확인)
             const validVacations = Array.isArray(item.vacations) 
               ? item.vacations.filter((v: VacationRequest) => v.status !== 'rejected') 
               : [];
-              
+            
+            const totalVacationers = item.totalVacationers !== undefined 
+              ? item.totalVacationers 
+              : validVacations.length;
+            
+            // 기존 항목이 있으면 병합, 없으면 새로 생성
+            const existingData = formattedData[dateKey];
             formattedData[dateKey] = {
+              ...(existingData || {}), // 기존 데이터가 있으면 유지
               date: dateKey,
-              totalVacationers: validVacations.length,
+              totalVacationers: totalVacationers,
               vacations: Array.isArray(item.vacations) ? item.vacations : [],
-              maxPeople: item.maxPeople || 3
+              // maxPeople 값이 있으면 그대로 사용, 없으면 기존 값 유지, 둘 다 없으면 기본값 3
+              maxPeople: item.maxPeople !== undefined ? item.maxPeople : 
+                        (existingData?.maxPeople || 3)
             };
+            
+            // 디버깅용 로그
+            console.log(`날짜 ${dateKey} 변환 완료: ${formattedData[dateKey].totalVacationers}/${formattedData[dateKey].maxPeople}`);
           }
         });
+      } else {
+        console.error('예상치 못한 API 응답 형식:', apiData);
       }
       
       console.log('변환된 캘린더 데이터:', formattedData);
@@ -131,11 +136,16 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
       const formattedDate = format(date, 'yyyy-MM-dd');
       console.log(`선택된 날짜 데이터 가져오기: ${formattedDate}`);
       
-      const response = await fetch(`/api/vacation/date/${formattedDate}`, {
+      // 캐시 방지를 위한 타임스탬프 추가
+      const cacheParam = `?_t=${Date.now()}&_r=${Math.random().toString().substring(2, 8)}`;
+      
+      const response = await fetch(`/api/vacation/date/${formattedDate}${cacheParam}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache'
+          'Cache-Control': 'no-store, no-cache',
+          'Pragma': 'no-cache',
+          'X-Request-Time': new Date().toISOString()
         }
       });
       
@@ -146,28 +156,86 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
       const data = await response.json();
       console.log('날짜 상세 데이터:', data);
       
-      // 데이터 업데이트
-      if (data && data.vacations) {
+      // 데이터 업데이트 시 원본 데이터 보존
+      if (data) {
+        // 중요: 여기서 새 데이터 객체 생성하지 않고 기존 데이터 통합
         const newCalendarData = { ...calendarData };
-        const validVacations = data.vacations.filter((v: VacationRequest) => v.status !== 'rejected');
         
+        // API에서 받은 maxPeople 값 확인 및 기존 값과 비교
+        console.log(`${formattedDate} 날짜의 최대 인원 변경: ${newCalendarData[formattedDate]?.maxPeople || '없음'} -> ${data.maxPeople || 3}`);
+        
+        // 데이터 병합 - 기존 데이터 구조 유지하면서 API 응답 반영
         newCalendarData[formattedDate] = {
+          ...newCalendarData[formattedDate], // 기존 데이터 유지
           date: formattedDate,
-          totalVacationers: validVacations.length,
-          vacations: data.vacations,
-          maxPeople: data.maxPeople || 3
+          vacations: data.vacations || [],
+          // maxPeople이 있으면 그 값 사용, 없으면 기존 값 유지하고 그것도 없으면 기본값 3 사용
+          maxPeople: data.maxPeople !== undefined ? data.maxPeople : 
+                    (newCalendarData[formattedDate]?.maxPeople || 3),
+          // totalVacationers 계산 - API에서 제공하면 사용, 아니면 계산
+          totalVacationers: data.totalVacationers !== undefined 
+                          ? data.totalVacationers 
+                          : (data.vacations || []).filter((v: VacationRequest) => v.status !== 'rejected').length
         };
         
+        // 다시 전체 데이터 업데이트
         setCalendarData(newCalendarData);
+        
+        // 변경된 데이터 확인 로그
+        console.log(`${formattedDate} 날짜 데이터 업데이트 완료:`, newCalendarData[formattedDate]);
       }
     } catch (error) {
       console.error('선택된 날짜 데이터 로딩 오류:', error);
     }
   };
 
-  useEffect(() => {
+  // 새로고침 버튼 핸들러 함수
+  const handleRefresh = () => {
+    console.log('수동 새로고침 요청');
+    setIsLoading(true);
     fetchCalendarData();
-  }, [currentDate]);
+    logAllVacations();
+  };
+
+  // 컴포넌트 마운트 시 데이터 로드
+  useEffect(() => {
+    console.log('캘린더 마운트됨 - 초기 데이터 로드');
+    fetchCalendarData();
+
+    // 컴포넌트가 마운트된 후 1초 후에 한 번 더 데이터를 새로 가져옴
+    // (Firebase 데이터 갱신 지연 고려)
+    const timer = setTimeout(() => {
+      console.log('지연 데이터 로드 실행');
+      fetchCalendarData();
+    }, 1000);
+
+    // 언마운트 시 타이머 정리
+    return () => clearTimeout(timer);
+  }, []); // 의존성 배열이 비어있어 마운트 시에만 실행
+
+  // 월 변경 시 데이터 갱신
+  useEffect(() => {
+    console.log('월 변경됨 - 데이터 로드');
+    fetchCalendarData();
+  }, [currentDate, monthStart, monthEnd]);
+
+  // 웹 페이지 포커스가 돌아왔을 때 데이터 새로고침
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('페이지 포커스 복귀 - 데이터 새로고침');
+        fetchCalendarData();
+      }
+    };
+    
+    // 페이지 가시성 변경 이벤트 리스너 등록
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // 정리 함수
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   const handleDateClick = (date: Date) => {
     if (!isSameMonth(date, currentDate)) return;
@@ -306,8 +374,20 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
 
   const handleCloseAdminPanel = () => {
     setShowAdminPanel(false);
-    // 패널이 닫힐 때 데이터 즉시 갱신
+    // 패널이 닫힐 때 데이터 즉시 갱신 - 타임아웃 추가
+    console.log('관리자 패널 닫힘, 데이터 갱신 시작...');
+    
+    // 먼저 로딩 상태 표시
+    setIsLoading(true);
+    
+    // 즉시 1차 갱신
     fetchCalendarData();
+    
+    // 잠시 후 2차 갱신 (Firebase 데이터 반영 시간 고려)
+    setTimeout(() => {
+      console.log('지연 데이터 갱신 실행...');
+      fetchCalendarData();
+    }, 1000);
   };
 
   return (
@@ -352,10 +432,7 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
               <FiChevronRight size={14} className="sm:w-5 sm:h-5" />
             </button>
             <button
-              onClick={() => {
-                fetchCalendarData();
-                logAllVacations();
-              }}
+              onClick={handleRefresh}
               className="p-1 sm:p-2 rounded-lg bg-green-50 hover:bg-green-100 transition-colors text-green-600"
               aria-label="데이터 새로고침"
             >

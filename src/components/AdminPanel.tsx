@@ -17,6 +17,8 @@ const AdminPanel = ({ currentDate, onClose, onUpdateSuccess, vacationLimits, onL
   const [limits, setLimits] = useState<VacationLimit[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: string; text: string } | null>(null);
 
   useEffect(() => {
     fetchMonthLimits();
@@ -67,41 +69,63 @@ const AdminPanel = ({ currentDate, onClose, onUpdateSuccess, vacationLimits, onL
   };
 
   const saveChanges = async () => {
-    setIsSubmitting(true);
-    setError('');
-    
     try {
-      console.log('휴가 제한 저장 시작...');
-      const response = await fetch('/api/vacation/limits', {
+      setIsSaving(true);
+      setError('');
+      
+      console.log('[AdminPanel] 휴가 제한 저장 시작');
+      
+      // 현재 설정된 제한 정보 사용
+      console.log('[AdminPanel] 저장할 제한 데이터:', limits);
+      
+      // API 호출 시 타임스탬프 추가하여 캐시 방지
+      const timestamp = Date.now();
+      const response = await fetch(`/api/vacation/limits?_t=${timestamp}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store',
+          'Pragma': 'no-cache'
         },
-        body: JSON.stringify({ limits }),
+        body: JSON.stringify({ 
+          limits,
+          timestamp // 요청 본문에도 타임스탬프 추가 
+        })
       });
       
       if (!response.ok) {
-        throw new Error('휴가 제한 저장에 실패했습니다.');
+        const errorData = await response.json();
+        console.error('[AdminPanel] 저장 실패:', errorData);
+        throw new Error(errorData.error || '저장 중 오류가 발생했습니다');
       }
       
-      // 성공적으로 저장한 후 콜백 처리
-      console.log('휴가 제한 성공적으로 저장됨, 데이터 갱신 중...');
+      const result = await response.json();
+      console.log('[AdminPanel] 저장 성공:', result);
       
-      // 확실히 onUpdateSuccess 함수가 호출되도록 함
-      if (typeof onUpdateSuccess === 'function') {
-        try {
+      // 변경 사항이 저장된 후 성공 콜백 호출
+      if (onUpdateSuccess) {
+        console.log('[AdminPanel] 성공 콜백 호출');
+        // 첫 번째 즉시 호출 
+        onUpdateSuccess();
+        
+        // 짧은 지연 후 두 번째 호출 (Firebase 갱신 지연 고려)
+        setTimeout(() => {
+          console.log('[AdminPanel] 지연 성공 콜백 호출');
           onUpdateSuccess();
-          console.log('데이터 갱신 완료');
-        } catch (updateError) {
-          console.error('데이터 갱신 중 오류:', updateError);
-        }
+        }, 1000);
       }
       
-      // 성공 후 패널 닫기
-      onClose();
-    } catch (err) {
-      console.error('휴가 제한 저장 오류:', err);
-      setError('휴가 제한 저장에 실패했습니다.');
+      // 약간의 지연 후 패널 닫기
+      setTimeout(() => {
+        if (onClose) {
+          console.log('[AdminPanel] 패널 닫기');
+          onClose();
+        }
+      }, 1500);
+      
+    } catch (error) {
+      console.error('[AdminPanel] 저장 중 오류:', error);
+      setError(error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다');
     } finally {
       setIsSubmitting(false);
     }
