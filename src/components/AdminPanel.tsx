@@ -83,9 +83,20 @@ const AdminPanel = ({ currentDate, onClose, onUpdateSuccess, vacationLimits, onL
         throw new Error('휴가 제한 저장에 실패했습니다.');
       }
       
+      // 성공적으로 저장한 후 콜백 처리
+      console.log('휴가 제한 성공적으로 저장됨, 데이터 갱신 중...');
+      
+      // 확실히 onUpdateSuccess 함수가 호출되도록 함
       if (typeof onUpdateSuccess === 'function') {
-        await onUpdateSuccess();
+        try {
+          await onUpdateSuccess();
+          console.log('데이터 갱신 완료');
+        } catch (updateError) {
+          console.error('데이터 갱신 중 오류:', updateError);
+        }
       }
+      
+      // 성공 후 패널 닫기
       onClose();
     } catch (err) {
       console.error('휴가 제한 저장 오류:', err);

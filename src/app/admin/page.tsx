@@ -218,6 +218,7 @@ export default function AdminPage() {
   const handleLimitSet = async (date: Date, maxPeople: number) => {
     try {
       await setVacationLimit(date, maxPeople);
+      // 제한 설정 후 데이터 즉시 갱신
       await fetchMonthData();
       showNotification('휴가 제한 인원이 설정되었습니다.', 'success');
     } catch (error) {

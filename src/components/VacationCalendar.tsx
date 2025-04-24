@@ -165,18 +165,11 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
       };
     }
     
-    if (isWeekend) {
-      return {
-        bg: 'bg-gray-100',
-        text: date.getDay() === 0 ? 'text-red-500' : 'text-indigo-500',
-        border: 'border-transparent'
-      };
-    }
-    
+    // 주말 여부에 관계없이 휴가자 수에 따라 배경색 적용
     if (vacationersCount === 0) {
       return {
         bg: 'bg-green-100 hover:bg-green-200',
-        text: 'text-green-800',
+        text: isWeekend ? (date.getDay() === 0 ? 'text-red-600' : 'text-indigo-600') : 'text-green-800',
         border: 'border-transparent',
         status: '가능'
       };
@@ -185,14 +178,14 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
       if (ratio < 0.5) {
         return {
           bg: 'bg-green-50 hover:bg-green-100',
-          text: 'text-green-700',
+          text: isWeekend ? (date.getDay() === 0 ? 'text-red-600' : 'text-indigo-600') : 'text-green-700',
           border: 'border-transparent',
           status: '여유'
         };
       } else {
         return {
           bg: 'bg-yellow-50 hover:bg-yellow-100',
-          text: 'text-yellow-700',
+          text: isWeekend ? (date.getDay() === 0 ? 'text-red-600' : 'text-indigo-600') : 'text-yellow-700',
           border: 'border-transparent',
           status: '제한'
         };
@@ -200,14 +193,14 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
     } else if (vacationersCount === maxPeople) {
       return {
         bg: 'bg-orange-50 hover:bg-orange-100',
-        text: 'text-orange-700',
+        text: isWeekend ? (date.getDay() === 0 ? 'text-red-600' : 'text-indigo-600') : 'text-orange-700',
         border: 'border-transparent',
         status: '마감'
       };
     } else {
       return {
         bg: 'bg-red-50 hover:bg-red-100',
-        text: 'text-red-700',
+        text: isWeekend ? (date.getDay() === 0 ? 'text-red-600' : 'text-indigo-600') : 'text-red-700',
         border: 'border-transparent',
         status: '초과'
       };
@@ -251,6 +244,18 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
           data.vacations.map(v => v.userName).join(', '));
       }
     });
+  };
+
+  const handleShowAdminPanel = () => {
+    setShowAdminPanel(true);
+  };
+
+  const handleCloseAdminPanel = () => {
+    setShowAdminPanel(false);
+    // 패널이 닫힐 때 데이터 새로고침
+    setTimeout(() => {
+      fetchCalendarData();
+    }, 300);
   };
 
   return (
@@ -304,6 +309,15 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
             >
               <FiRefreshCw size={12} className="sm:w-[18px] sm:h-[18px]" />
             </button>
+            {isAdmin && (
+              <button
+                onClick={handleShowAdminPanel}
+                className="p-1 sm:p-2 rounded-lg bg-purple-50 hover:bg-purple-100 transition-colors text-purple-600"
+                aria-label="휴가 제한 설정"
+              >
+                <FiUsers size={12} className="sm:w-[18px] sm:h-[18px]" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -485,7 +499,7 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
       {isAdmin && showAdminPanel && (
         <AdminPanel
           currentDate={selectedDate || currentDate}
-          onClose={() => setShowAdminPanel(false)}
+          onClose={handleCloseAdminPanel}
           onUpdateSuccess={fetchCalendarData}
         />
       )}
