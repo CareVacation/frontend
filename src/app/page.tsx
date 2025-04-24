@@ -161,7 +161,9 @@ export default function Home() {
     setCurrentDate(prev => subMonths(prev, 1));
   };
 
-  const handleDateSelect = async (date: Date) => {
+  const handleDateSelect = async (date: Date | null) => {
+    if (!date) return;
+    
     setSelectedDate(date);
     setShowDetails(true);
     setIsLoading(true);

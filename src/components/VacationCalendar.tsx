@@ -68,14 +68,48 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
       
       // 응답 데이터 파싱
       const apiData = await response.json();
-      console.log('API 응답 데이터 수신:', Object.keys(apiData).length, '개 날짜');
+      console.log('API 응답 데이터 수신:', apiData);
       
       // API 응답을 VacationData 형식으로 변환
       const formattedData: VacationData = { ...calendarData }; // 기존 데이터 유지
       
-      // API 응답 구조가 객체 형태로 변경됨: { 'YYYY-MM-DD': { date, vacations, totalVacationers, maxPeople }, ... }
-      if (typeof apiData === 'object' && apiData !== null) {
-        // 각 날짜 항목 처리
+      // 응답이 { dates: { ... } } 형식으로 왔는지 확인
+      if (apiData && apiData.dates && typeof apiData.dates === 'object') {
+        console.log('날짜 데이터 발견:', Object.keys(apiData.dates).length, '개 날짜');
+        
+        // 각 날짜별 데이터 처리
+        Object.keys(apiData.dates).forEach(dateKey => {
+          const dateData = apiData.dates[dateKey];
+          
+          if (dateData) {
+            // 디버깅용 로그
+            console.log(`날짜 ${dateKey} 데이터:`, dateData);
+            
+            // 상세 데이터 분석
+            const vacations = Array.isArray(dateData.vacations) ? dateData.vacations : [];
+            const people = Array.isArray(dateData.people) ? dateData.people : [];
+            const maxPeople = dateData.maxPeople !== undefined ? dateData.maxPeople : 3;
+            
+            // 총 휴가자 수 (API에서 제공하거나 계산)
+            const totalVacationers = dateData.totalVacationers !== undefined 
+              ? dateData.totalVacationers 
+              : vacations.filter((v: any) => v.status !== 'rejected').length;
+            
+            // 데이터 저장
+            formattedData[dateKey] = {
+              date: dateKey,
+              totalVacationers: totalVacationers,
+              vacations: vacations,
+              people: people,
+              maxPeople: maxPeople
+            };
+            
+            console.log(`날짜 ${dateKey} 처리 완료: 휴가자 ${totalVacationers}명, 최대 ${maxPeople}명`);
+          }
+        });
+      } else {
+        // 이전 형식의 API 응답 처리 (호환성 유지)
+        console.log('이전 형식의 API 응답 감지');
         Object.keys(apiData).forEach(dateKey => {
           const item = apiData[dateKey];
           if (item) {
@@ -99,15 +133,13 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
               vacations: Array.isArray(item.vacations) ? item.vacations : [],
               // maxPeople 값이 있으면 그대로 사용, 없으면 기존 값 유지, 둘 다 없으면 기본값 3
               maxPeople: item.maxPeople !== undefined ? item.maxPeople : 
-                        (existingData?.maxPeople || 3)
+                       (existingData?.maxPeople || 3)
             };
             
             // 디버깅용 로그
             console.log(`날짜 ${dateKey} 변환 완료: ${formattedData[dateKey].totalVacationers}/${formattedData[dateKey].maxPeople}`);
           }
         });
-      } else {
-        console.error('예상치 못한 API 응답 형식:', apiData);
       }
       
       console.log('변환된 캘린더 데이터:', formattedData);
@@ -117,6 +149,9 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
       if (selectedDate) {
         fetchSelectedDateData(selectedDate);
       }
+      
+      // 데이터 로드 성공 시 로깅
+      logAllVacations();
     } catch (error) {
       console.error('캘린더 데이터 로딩 오류:', error);
       
@@ -197,20 +232,42 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
     logAllVacations();
   };
 
-  // 컴포넌트 마운트 시 데이터 로드
+  // 컴포넌트 마운트 시 데이터 로드 로직 강화
   useEffect(() => {
-    console.log('캘린더 마운트됨 - 초기 데이터 로드');
-    fetchCalendarData();
-
-    // 컴포넌트가 마운트된 후 1초 후에 한 번 데이터를 새로 가져옴
-    // (Firebase 데이터 갱신 지연 고려)
-    const timer = setTimeout(() => {
-      console.log('지연 데이터 로드 실행');
-      fetchCalendarData();
-    }, 1000);
-
-    // 언마운트 시 타이머 정리
-    return () => clearTimeout(timer);
+    console.log('캘린더 마운트됨 - 초기 데이터 로드 시작');
+    
+    // 초기 데이터 로드 함수
+    const initialLoad = async () => {
+      try {
+        // 첫 번째 데이터 로드
+        await fetchCalendarData();
+        console.log('초기 데이터 로드 완료');
+        
+        // 짧은 지연 후 다시 로드 (데이터 동기화 확인)
+        setTimeout(async () => {
+          console.log('보조 데이터 로드 시작 (갱신 확인)');
+          await fetchCalendarData();
+          console.log('보조 데이터 로드 완료');
+          
+          // 모든 날짜의 휴가 정보 로깅
+          logAllVacations();
+          
+          // 3초 후 최종 데이터 확인
+          setTimeout(async () => {
+            console.log('최종 데이터 로드 시작 (마지막 확인)');
+            await fetchCalendarData();
+            console.log('최종 데이터 로드 완료');
+          }, 3000);
+        }, 1000);
+      } catch (error) {
+        console.error('초기 데이터 로드 실패:', error);
+      }
+    };
+    
+    // 초기 로드 실행
+    initialLoad();
+    
+    // 컴포넌트 언마운트 시 타이머 정리는 불필요 (비동기 함수에서 처리)
   }, []); // 의존성 배열이 비어있어 마운트 시에만 실행
 
   // 월 변경 시 데이터 갱신
@@ -344,16 +401,31 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
     const dateKey = format(date, 'yyyy-MM-dd');
     const dayData = calendarData[dateKey];
     
-    // 데이터 구조 로깅
+    // 데이터 존재 확인
+    if (!dayData) {
+      return [];
+    }
+    
+    // 휴가 데이터 로깅 (디버깅용)
     if (dayData?.vacations?.length > 0) {
-      console.log(`${dateKey}의 휴가 신청자:`, dayData.vacations);
-    } else if (dayData?.people && dayData.people.length > 0) {
-      // people 배열도 확인 (이전 API 구조와의 호환성)
-      console.log(`${dateKey}의 휴가 신청자(people):`, dayData.people);
+      console.log(`${dateKey}의 휴가 신청자 (${dayData.vacations.length}명):`, 
+        dayData.vacations.map(v => `${v.userName}(${v.status})`).join(', '));
+    }
+    
+    // 1. vacations 배열이 있고 비어있지 않으면 사용
+    if (Array.isArray(dayData.vacations) && dayData.vacations.length > 0) {
+      return dayData.vacations;
+    }
+    
+    // 2. 대체: people 배열이 있고 비어있지 않으면 사용 (이전 API 구조와의 호환성)
+    if (Array.isArray(dayData.people) && dayData.people.length > 0) {
+      console.log(`${dateKey}의 휴가 신청자(people 배열, ${dayData.people.length}명):`, 
+        dayData.people.map(v => `${v.userName}(${v.status})`).join(', '));
       return dayData.people;
     }
     
-    return dayData?.vacations || (dayData?.people || []);
+    // 3. 둘 다 없으면 빈 배열 반환
+    return [];
   };
 
   // 데이터 디버깅을 위한 함수
@@ -452,7 +524,7 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
               className="p-1 sm:p-2 rounded-lg bg-green-50 hover:bg-green-100 transition-colors text-green-600"
               aria-label="데이터 새로고침"
             >
-              <FiRefreshCw size={12} className="sm:w-[18px] sm:h-[18px]" />
+              <FiRefreshCw size={12} className={`${isLoading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
@@ -540,34 +612,37 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
                   )}
                 </div>
                 
-                {/* 신청자 이름 표시 */}
+                {/* 휴가자 목록 바로 표시 */}
                 {isCurrentMonth && vacations && vacations.length > 0 && (
                   <div className="mt-0.5 sm:mt-1.5 max-h-8 sm:max-h-12 overflow-hidden">
-                    {vacations.slice(0, 2).map((vacation, idx) => (
-                      <div key={idx} className="flex items-center text-[6px] sm:text-xs mb-0.5">
-                        <span className={`flex-shrink-0 whitespace-nowrap text-[6px] sm:text-xs mr-0.5 sm:mr-1 px-0.5 sm:px-1 py-0 sm:py-0.5 rounded-full
-                          ${vacation.status === 'approved' 
-                            ? 'bg-green-100 text-green-600' 
-                            : vacation.status === 'rejected'
-                            ? 'bg-red-100 text-red-600'
-                            : 'bg-yellow-100 text-yellow-600'}`}>
-                          {vacation.status === 'approved' 
-                            ? '승인' 
-                            : vacation.status === 'rejected'
-                            ? '거절'
-                            : '대기'}
-                        </span>
-                        <span className={`truncate max-w-[65%] ${
-                          vacation.status === 'rejected'
-                            ? 'text-red-600 line-through'
-                            : 'text-gray-700'
-                        }`}>
-                          {vacation.userName || `이름 없음`}
-                        </span>
-                      </div>
-                    ))}
-                    {vacations.length > 2 && (
-                      <div className="text-[6px] sm:text-xs text-gray-500 mt-0.5">+{vacations.length - 2}명</div>
+                    {vacations
+                      .filter(v => v.status !== 'rejected')
+                      .slice(0, 3) // 최대 3명만 표시
+                      .map((vacation, idx) => (
+                        <div key={idx} className="flex items-center text-[6px] sm:text-xs mb-0.5">
+                          <span className={`flex-shrink-0 whitespace-nowrap text-[6px] sm:text-xs mr-0.5 sm:mr-1 px-0.5 sm:px-1 py-0 sm:py-0.5 rounded-full
+                            ${vacation.status === 'approved' 
+                              ? 'bg-green-100 text-green-600' 
+                              : vacation.status === 'rejected'
+                              ? 'bg-red-100 text-red-600'
+                              : 'bg-yellow-100 text-yellow-600'}`}>
+                            {vacation.status === 'approved' 
+                              ? '승인' 
+                              : vacation.status === 'rejected'
+                              ? '거절'
+                              : '대기'}
+                          </span>
+                          <span className={`truncate max-w-[65%] ${
+                            vacation.status === 'rejected'
+                              ? 'text-red-600 line-through'
+                              : 'text-gray-700'
+                          }`}>
+                            {vacation.userName || `이름 없음`}
+                          </span>
+                        </div>
+                      ))}
+                    {vacations.filter(v => v.status !== 'rejected').length > 3 && (
+                      <div className="text-[6px] sm:text-xs text-gray-500 mt-0.5">+{vacations.filter(v => v.status !== 'rejected').length - 3}명</div>
                     )}
                   </div>
                 )}

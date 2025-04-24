@@ -16,11 +16,11 @@ export async function OPTIONS() {
 }
 
 export async function GET(
-  request: NextRequest,
-  { params }: { params: { date: string } }
+  request: NextRequest
 ) {
   try {
-    const dateParam = params.date;
+    // URL에서 경로 매개변수 추출
+    const dateParam = request.nextUrl.pathname.split('/').pop() || '';
     console.log(`[Date API] 호출: 날짜 ${dateParam} 휴가 정보 요청, 시간=${new Date().toISOString()}`);
     
     // 날짜 형식 검증
