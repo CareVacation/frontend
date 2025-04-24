@@ -321,7 +321,7 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
 
         {/* 캘린더 그리드 */}
         <motion.div 
-          className="grid grid-cols-7 gap-0.5 sm:gap-2"
+          className="grid grid-cols-7 gap-x-1 gap-y-2 sm:gap-x-3 sm:gap-y-4"
           initial="hidden"
           animate="visible"
           variants={{
@@ -351,12 +351,12 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
                 key={index}
                 variants={fadeInVariants}
                 onClick={() => handleDateClick(day)}
-                className={`p-0.5 sm:p-2 h-14 sm:h-24 rounded-lg sm:rounded-xl relative cursor-pointer transition-all ${
+                className={`p-1 sm:p-2 min-h-[44px] sm:min-h-[96px] rounded-lg sm:rounded-xl relative cursor-pointer transition-all ${
                   !isCurrentMonth ? 'opacity-40' : ''
                 } ${isSelected ? 'ring-2 ring-blue-500 scale-[1.02] shadow-md z-10' : ''}
                 ${dayColor.bg}
                 ${isPast ? 'cursor-not-allowed opacity-60' : ''}
-                hover:shadow-sm overflow-hidden aspect-square`}
+                hover:shadow-sm overflow-hidden`}
               >
                 <div className={`flex justify-between items-start`}>
                   <div className={`text-[10px] sm:text-sm font-semibold ${
@@ -391,7 +391,7 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
                   <div className="mt-0.5 sm:mt-1.5 max-h-8 sm:max-h-12 overflow-hidden">
                     {vacations.slice(0, 2).map((vacation, idx) => (
                       <div key={idx} className="flex items-center text-[6px] sm:text-xs mb-0.5">
-                        <span className={`text-[6px] sm:text-xs mr-0.5 sm:mr-1 px-0.5 sm:px-1 py-0 sm:py-0.5 rounded-full
+                        <span className={`flex-shrink-0 whitespace-nowrap text-[6px] sm:text-xs mr-0.5 sm:mr-1 px-0.5 sm:px-1 py-0 sm:py-0.5 rounded-full
                           ${vacation.status === 'approved' 
                             ? 'bg-green-100 text-green-600' 
                             : vacation.status === 'rejected'
@@ -403,7 +403,7 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
                             ? '거절'
                             : '대기'}
                         </span>
-                        <span className={`truncate max-w-[60%] ${
+                        <span className={`truncate max-w-[65%] ${
                           vacation.status === 'rejected'
                             ? 'text-red-600 line-through'
                             : 'text-gray-700'
