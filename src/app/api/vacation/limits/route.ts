@@ -4,14 +4,15 @@ import { getVacationLimitsForMonth, setVacationLimit, getVacationLimits } from '
 import { format, parseISO } from 'date-fns';
 import { parse } from 'date-fns';
 
-// 기본 CORS 및 캐시 방지 헤더 설정
+// 응답 헤더를 추가하여 캐시 방지
 const headers = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Cache-Control': 'no-store, max-age=0, must-revalidate',
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
   'Pragma': 'no-cache',
-  'Expires': '0'
+  'Expires': '0',
+  'Surrogate-Control': 'no-store'
 };
 
 // OPTIONS 요청에 대한 핸들러 추가
@@ -59,49 +60,72 @@ export async function GET(request: NextRequest) {
 // POST: 휴가 제한 설정
 export async function POST(request: NextRequest) {
   try {
+    // 요청 본문에서 데이터 추출
     const body = await request.json();
     const { limits } = body;
-
-    // 유효성 검사
+    
+    console.log(`[Limits API] POST 요청 받음, ${limits.length}개 항목, 현재 시간: ${new Date().toISOString()}`);
+    
     if (!limits || !Array.isArray(limits)) {
-      console.warn('[API] 휴가 제한 설정 요청 실패: 유효한 limits 배열이 없음');
+      console.error('[Limits API] 잘못된 요청 형식:', body);
       return NextResponse.json(
-        { error: '유효한 limits 배열이 필요합니다' },
+        { error: '올바른 형식의 휴가 제한 데이터가 필요합니다' },
         { status: 400 }
       );
     }
-
-    console.log(`[API] 휴가 제한 설정 요청: ${limits.length}건 처리 시작`);
-    let successCount = 0;
-    let errorCount = 0;
-
-    for (const item of limits) {
+    
+    console.log('[Limits API] 휴가 제한 저장 시작...');
+    const savedLimits = [];
+    
+    // 각 제한 항목을 저장
+    for (const limit of limits) {
+      const { date, maxPeople } = limit;
+      
+      if (!date || maxPeople === undefined) {
+        console.warn(`[Limits API] 잘못된 데이터 항목 건너뜀:`, limit);
+        continue;
+      }
+      
       try {
-        // 각 항목 유효성 검사
-        if (!item.date || !isValidDateFormat(item.date) || typeof item.maxPeople !== 'number') {
-          console.warn(`[API] 휴가 제한 항목 유효성 검사 실패: ${JSON.stringify(item)}`);
-          errorCount++;
-          continue;
-        }
-
-        console.log(`[API] 휴가 제한 설정 처리중: ${item.date} (최대 ${item.maxPeople}명)`);
-        await setVacationLimit(item.date, item.maxPeople);
-        successCount++;
-      } catch (itemError) {
-        console.error(`[API] 휴가 제한 설정 항목 오류 (${item?.date || 'unknown'}):`, itemError);
-        errorCount++;
+        console.log(`[Limits API] 휴가 제한 저장: ${date}, 최대 ${maxPeople}명`);
+        const result = await setVacationLimit(date, maxPeople);
+        savedLimits.push(result);
+        console.log(`[Limits API] 제한 저장 성공: ${date}`);
+      } catch (err) {
+        console.error(`[Limits API] 제한 항목 저장 중 오류(계속 진행): ${date}`, err);
       }
     }
-
-    console.log(`[API] 휴가 제한 설정 완료: 성공 ${successCount}건, 실패 ${errorCount}건`);
-    return NextResponse.json({
-      message: `${successCount}개의 휴가 제한이 성공적으로 저장되었습니다.${errorCount > 0 ? ` (${errorCount}개 실패)` : ''}`
-    });
-  } catch (error) {
-    console.error('[API] 휴가 제한 설정 요청 처리 오류:', error);
+    
+    console.log(`[Limits API] 저장 완료, ${savedLimits.length}개 항목, 타임스탬프: ${Date.now()}`);
+    
+    // 캐시 방지 헤더를 포함한 성공 응답
+    const responseHeaders = {
+      ...headers,
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      'x-timestamp': Date.now().toString()
+    };
+    
     return NextResponse.json(
-      { error: '휴가 제한 설정 중 오류가 발생했습니다' },
-      { status: 500 }
+      {
+        success: true,
+        message: `${savedLimits.length}개의 휴가 제한이 저장되었습니다.`,
+        limits: savedLimits,
+        timestamp: Date.now()
+      },
+      { headers: responseHeaders }
+    );
+  } catch (error) {
+    console.error('[Limits API] 휴가 제한 저장 중 오류:', error);
+    
+    return NextResponse.json(
+      {
+        error: '휴가 제한 저장 중 오류가 발생했습니다',
+        message: error instanceof Error ? error.message : '알 수 없는 오류',
+        timestamp: Date.now()
+      },
+      { status: 500, headers }
     );
   }
 } 

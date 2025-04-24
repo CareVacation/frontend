@@ -202,7 +202,7 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
     console.log('캘린더 마운트됨 - 초기 데이터 로드');
     fetchCalendarData();
 
-    // 컴포넌트가 마운트된 후 1초 후에 한 번 더 데이터를 새로 가져옴
+    // 컴포넌트가 마운트된 후 1초 후에 한 번 데이터를 새로 가져옴
     // (Firebase 데이터 갱신 지연 고려)
     const timer = setTimeout(() => {
       console.log('지연 데이터 로드 실행');
@@ -374,20 +374,36 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
 
   const handleCloseAdminPanel = () => {
     setShowAdminPanel(false);
-    // 패널이 닫힐 때 데이터 즉시 갱신 - 타임아웃 추가
-    console.log('관리자 패널 닫힘, 데이터 갱신 시작...');
+    // 패널이 닫힐 때 즉시 데이터 새로고침
+    console.log('관리자 패널 닫힘, 데이터 즉시 새로고침...');
     
     // 먼저 로딩 상태 표시
     setIsLoading(true);
     
-    // 즉시 1차 갱신
-    fetchCalendarData();
+    // 타임스탬프로 캐시 방지하여 즉시 데이터 갱신
+    const refreshData = async () => {
+      try {
+        // 즉시 1차 갱신
+        await fetchCalendarData();
+        
+        // 1초 후 2차 갱신 (Firebase 데이터 반영 시간 고려)
+        setTimeout(async () => {
+          console.log('지연 데이터 갱신 실행...');
+          await fetchCalendarData();
+          
+          // 2차 갱신 후 추가로 선택된 날짜 데이터도 갱신
+          if (selectedDate) {
+            console.log('선택된 날짜 데이터 갱신...');
+            await fetchSelectedDateData(selectedDate);
+          }
+        }, 1000);
+      } catch (error) {
+        console.error('데이터 새로고침 중 오류:', error);
+      }
+    };
     
-    // 잠시 후 2차 갱신 (Firebase 데이터 반영 시간 고려)
-    setTimeout(() => {
-      console.log('지연 데이터 갱신 실행...');
-      fetchCalendarData();
-    }, 1000);
+    // 데이터 갱신 함수 실행
+    refreshData();
   };
 
   return (
