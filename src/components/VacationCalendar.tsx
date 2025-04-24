@@ -5,7 +5,7 @@ import { ko } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DayInfo, VacationRequest, VacationLimit, VacationData, CalendarProps } from '@/types/vacation';
 import AdminPanel from './AdminPanel';
-import { FiChevronLeft, FiChevronRight, FiX, FiCalendar, FiUsers, FiRefreshCw, FiAlertCircle, FiCheck } from 'react-icons/fi';
+import { FiChevronLeft, FiChevronRight, FiX, FiCalendar, FiRefreshCw, FiAlertCircle, FiCheck } from 'react-icons/fi';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -174,6 +174,12 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
     
     if (selectedDate && isSameDay(date, selectedDate)) {
       setSelectedDate(null);
+      
+      // 날짜 선택 해제 시 부모 컴포넌트에 null을 명시적으로 전달
+      if (onDateSelect) {
+        console.log('날짜 선택 해제, onDateSelect(null) 호출');
+        onDateSelect(null);
+      }
       return;
     }
     
@@ -355,15 +361,6 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
             >
               <FiRefreshCw size={12} className="sm:w-[18px] sm:h-[18px]" />
             </button>
-            {isAdmin && (
-              <button
-                onClick={handleShowAdminPanel}
-                className="p-1 sm:p-2 rounded-lg bg-purple-50 hover:bg-purple-100 transition-colors text-purple-600"
-                aria-label="휴가 제한 설정"
-              >
-                <FiUsers size={12} className="sm:w-[18px] sm:h-[18px]" />
-              </button>
-            )}
           </div>
         </div>
 

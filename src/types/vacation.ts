@@ -27,7 +27,7 @@ export interface DayInfo {
 }
 
 export interface CalendarProps {
-  onDateSelect?: (date: Date) => void;
+  onDateSelect?: (date: Date | null) => void;
   onRequestSelect?: (date: Date) => Promise<void>;
   isAdmin?: boolean;
   maxPeopleAllowed?: number;

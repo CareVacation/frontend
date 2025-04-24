@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { format, addMonths, subMonths } from 'date-fns';
+import { format, addMonths, subMonths, isSameDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { DayInfo, VacationRequest, VacationLimit } from '@/types/vacation';
 import { getVacationsForMonth, getVacationLimitsForMonth, setVacationLimit } from '@/lib/vacationService';
@@ -220,7 +220,41 @@ export default function AdminPage() {
     setCurrentDate(prev => subMonths(prev, 1));
   };
 
-  const handleDateSelect = async (date: Date) => {
+  const handleDateSelect = async (date: Date | null) => {
+    // date가 null이면 선택 해제로 간주하고 전체 데이터 표시
+    if (date === null) {
+      console.log('날짜 선택 해제: 전체 데이터로 복원');
+      setSelectedDate(null);
+      setShowDetails(false);
+      setStatusFilter('all');
+      
+      // 즉시 전체 데이터 조회 및 화면 갱신
+      setIsLoading(true);
+      try {
+        await fetchAllRequests();
+        console.log('전체 데이터 조회 완료');
+      } catch (error) {
+        console.error('전체 데이터 조회 실패:', error);
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+    
+    // 이미 선택된 날짜를 다시 클릭하면 선택 해제하고 전체 데이터 표시
+    if (selectedDate && isSameDay(date, selectedDate)) {
+      setSelectedDate(null);
+      setShowDetails(false);
+      setStatusFilter('all');
+      // 즉시 전체 데이터 조회 실행 - 비동기 함수 처리를 즉시 수행하도록 변경
+      fetchAllRequests().then(() => {
+        console.log('전체 데이터 조회 완료');
+      }).catch(error => {
+        console.error('전체 데이터 조회 실패:', error);
+      });
+      return;
+    }
+    
     setSelectedDate(date);
     setShowDetails(true);
     setIsLoading(true);
@@ -230,13 +264,33 @@ export default function AdminPage() {
       
       // 특정 날짜 선택 시 필터를 해당 날짜의 데이터로 변경
       const formattedDate = format(date, 'yyyy-MM-dd');
-      const dateFilteredRequests = allRequests.filter(req => req.date === formattedDate);
-      setStatusFilter('all'); // 상태 필터 초기화
       
-      // 임시로 모든 요청 목록을 선택된 날짜 필터링한 결과로 교체
-      setAllRequests(dateFilteredRequests);
+      // 서버에서 해당 날짜의 요청을 가져오기
+      const response = await fetch(`/api/vacation/date/${formattedDate}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store, max-age=0, must-revalidate'
+        }
+      });
       
-      console.log(`${formattedDate} 날짜 필터 적용됨:`, dateFilteredRequests.length);
+      if (!response.ok) {
+        throw new Error(`API 응답 오류: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      const dateRequests = data.vacations || [];
+      
+      // 현재 필터 상태를 고려하여 요청 목록 갱신
+      if (statusFilter === 'all') {
+        setAllRequests(dateRequests);
+      } else {
+        // 상태별로 필터링
+        const filteredByStatus = dateRequests.filter((req: VacationRequest) => req.status === statusFilter);
+        setAllRequests(filteredByStatus);
+      }
+      
+      console.log(`${formattedDate} 날짜 필터 적용됨:`, dateRequests.length);
     } catch (error) {
       console.error('날짜 상세 정보를 불러오는 중 오류 발생:', error);
     } finally {
@@ -457,7 +511,39 @@ export default function AdminPage() {
     );
   };
 
-  // 필터 초기화 함수 추가
+  // 필터 상태 토글 기능으로 수정
+  const toggleStatusFilter = (status: 'all' | 'pending' | 'approved' | 'rejected') => {
+    // 현재 선택된 필터와 동일하면 필터 초기화 (전체 데이터 표시)
+    if (statusFilter === status && status !== 'all') {
+      setStatusFilter('all');
+      
+      // 선택된 날짜가 있으면 해당 날짜의 모든 데이터를 표시
+      if (selectedDate) {
+        const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+        fetchDateDetails(selectedDate).then(() => {
+          const dateFilteredRequests = allRequests.filter((req: VacationRequest) => req.date === formattedDate);
+          setAllRequests(dateFilteredRequests);
+        });
+      } else {
+        // 날짜가 선택되지 않았으면 모든 데이터 표시
+        fetchAllRequests();
+      }
+    } else {
+      setStatusFilter(status);
+      
+      // 선택된 날짜가 있으면 해당 날짜의 필터된 데이터만 표시
+      if (selectedDate && status !== 'all') {
+        const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+        // 전체 요청에서 날짜와 상태로 필터링
+        const filteredByDateAndStatus = allRequests.filter(
+          (req: VacationRequest) => req.date === formattedDate && req.status === status
+        );
+        console.log(`${formattedDate}의 ${status} 상태 필터 적용: ${filteredByDateAndStatus.length}건`);
+      }
+    }
+  };
+
+  // 필터 초기화 함수 개선
   const resetFilter = async () => {
     // 모든 요청을 다시 불러오기
     await fetchAllRequests();
@@ -514,15 +600,6 @@ export default function AdminPage() {
                       </svg>
                       휴가 제한 설정
                     </button>
-                    <button 
-                      onClick={resetFilter}
-                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center gap-2"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-                      </svg>
-                      필터 초기화
-                    </button>
                   </div>
                 </div>
                 <VacationCalendar
@@ -543,7 +620,7 @@ export default function AdminPage() {
                   </h2>
                   <div className="inline-flex shadow-sm rounded-md">
                     <button
-                      onClick={() => setStatusFilter('all')}
+                      onClick={() => toggleStatusFilter('all')}
                       className={`px-4 py-2 text-sm font-medium rounded-l-md ${
                         statusFilter === 'all' 
                           ? 'bg-indigo-600 text-white' 
@@ -553,7 +630,7 @@ export default function AdminPage() {
                       전체
                     </button>
                     <button
-                      onClick={() => setStatusFilter('pending')}
+                      onClick={() => toggleStatusFilter('pending')}
                       className={`px-4 py-2 text-sm font-medium ${
                         statusFilter === 'pending' 
                           ? 'bg-yellow-500 text-white' 
@@ -563,7 +640,7 @@ export default function AdminPage() {
                       대기중
                     </button>
                     <button
-                      onClick={() => setStatusFilter('approved')}
+                      onClick={() => toggleStatusFilter('approved')}
                       className={`px-4 py-2 text-sm font-medium ${
                         statusFilter === 'approved' 
                           ? 'bg-green-600 text-white' 
@@ -573,7 +650,7 @@ export default function AdminPage() {
                       승인됨
                     </button>
                     <button
-                      onClick={() => setStatusFilter('rejected')}
+                      onClick={() => toggleStatusFilter('rejected')}
                       className={`px-4 py-2 text-sm font-medium rounded-r-md ${
                         statusFilter === 'rejected' 
                           ? 'bg-red-600 text-white' 
