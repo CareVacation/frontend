@@ -1,84 +1,99 @@
 import { NextResponse } from 'next/server';
 import { DayInfo, VacationRequest, VacationLimit } from '@/types/vacation';
 import { getVacationsForMonth, getVacationLimitsForMonth } from '@/lib/vacationService';
+import { format, parse } from 'date-fns';
+
+// 기본 CORS 헤더 설정
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+// OPTIONS 요청에 대한 핸들러 추가
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const startDate = searchParams.get('startDate');
-  const endDate = searchParams.get('endDate');
-  
-  if (!startDate || !endDate) {
-    return NextResponse.json(
-      { error: '시작일과 종료일이 필요합니다.' },
-      { status: 400 }
-    );
-  }
-  
   try {
-    // 날짜 문자열에서 년도와 월 추출
-    const year = parseInt(startDate.substring(0, 4));
-    const month = parseInt(startDate.substring(5, 7)) - 1; // JavaScript의 월은 0부터 시작
+    // URL에서 검색 파라미터 추출
+    const { searchParams } = new URL(request.url);
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
     
-    // Firebase에서 실제 데이터 가져오기
-    const [vacations, limits] = await Promise.all([
-      getVacationsForMonth(year, month),
-      getVacationLimitsForMonth(year, month)
-    ]);
+    console.log(`캘린더 API 호출: startDate=${startDate}, endDate=${endDate}`);
     
-    // 휴가 제한 데이터를 날짜별로 맵핑
-    const limitsMap: Record<string, VacationLimit> = {};
-    limits.forEach(limit => {
-      limitsMap[limit.date] = limit;
-    });
+    if (!startDate || !endDate) {
+      console.error('시작일 또는 종료일이 누락됨');
+      return NextResponse.json(
+        { error: '시작일과 종료일 파라미터가 필요합니다.' },
+        { status: 400, headers: corsHeaders }
+      );
+    }
     
-    // 휴가 데이터를 날짜별로 정리
-    const calendarData: Record<string, DayInfo> = {};
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+      console.error('날짜 형식 오류');
+      return NextResponse.json(
+        { error: '날짜는 YYYY-MM-DD 형식이어야 합니다.' },
+        { status: 400, headers: corsHeaders }
+      );
+    }
     
-    // 먼저 모든 휴가 정보를 날짜별로 그룹화
+    // 문자열 날짜 파싱
+    const startDateObj = parse(startDate, 'yyyy-MM-dd', new Date());
+    const endDateObj = parse(endDate, 'yyyy-MM-dd', new Date());
+    
+    // 월별 데이터 가져오기
+    // 이 구현은 한 달 전체를 가져오는 것이 목표이므로, 
+    // 시작 날짜의 연도와 월만 사용하여 해당 월의 데이터 조회
+    const year = startDateObj.getFullYear();
+    const month = startDateObj.getMonth();
+    
+    const vacations = await getVacationsForMonth(year, month);
+    
+    // 연/월/일 별로 그룹화된 결과 생성
+    const result: Record<string, any> = {};
+    
     vacations.forEach(vacation => {
       const date = vacation.date;
       
-      if (!calendarData[date]) {
-        calendarData[date] = {
+      if (!result[date]) {
+        result[date] = {
           date,
-          count: 0,
-          people: [],
-          vacations: []
+          vacations: [],
+          totalVacationers: 0
         };
       }
       
-      calendarData[date].count += 1;
-      calendarData[date].people.push(vacation);
-      // 캘린더 셀에 표시하기 위한 휴가 정보 리스트
-      if (!calendarData[date].vacations) {
-        calendarData[date].vacations = [];
-      }
-      calendarData[date].vacations.push(vacation);
-    });
-    
-    // 휴가 제한 상태 업데이트
-    Object.keys(calendarData).forEach(date => {
-      const limit = limitsMap[date] || { maxPeople: 3 }; // 기본값: 3명
-      const currentCount = calendarData[date].count;
+      result[date].vacations.push(vacation);
       
-      calendarData[date].limit = limit;
-      
-      if (currentCount < limit.maxPeople) {
-        calendarData[date].status = 'available'; // 여유 있음
-      } else if (currentCount === limit.maxPeople) {
-        calendarData[date].status = 'full'; // 꽉 참
-      } else {
-        calendarData[date].status = 'over'; // 초과됨
+      // 거부된 휴가는 카운트에서 제외
+      if (vacation.status !== 'rejected') {
+        result[date].totalVacationers += 1;
       }
     });
     
-    console.log('Firebase에서 가져온 휴가 데이터:', calendarData);
-    return NextResponse.json(calendarData);
+    console.log(`캘린더 데이터 조회 성공: ${Object.keys(result).length}일의 데이터 반환`);
+    
+    return NextResponse.json(result, {
+      headers: corsHeaders
+    });
   } catch (error) {
-    console.error('휴가 데이터 조회 중 오류:', error);
+    console.error('캘린더 데이터 조회 중 오류:', error);
+    
+    // 에러 타입에 따른 응답
+    if (error instanceof Error) {
+      console.error(`에러 메시지: ${error.message}`);
+      console.error(`에러 스택: ${error.stack}`);
+    }
+    
     return NextResponse.json(
-      { error: '휴가 데이터를 가져오는데 실패했습니다.' },
-      { status: 500 }
+      { 
+        error: '캘린더 데이터를 가져오는데 실패했습니다.',
+        message: error instanceof Error ? error.message : '알 수 없는 오류'
+      },
+      { status: 500, headers: corsHeaders }
     );
   }
 } 

@@ -9,7 +9,6 @@ import { DayInfo, VacationRequest, VacationLimit } from '@/types/vacation';
 import { getVacationsForMonth, getVacationsForDate, getVacationLimitsForMonth, getVacationLimitForDate, setVacationLimit } from '@/lib/vacationService';
 import { AnimatePresence, motion } from 'framer-motion';
 import VacationCalendar from '@/components/VacationCalendar';
-import axios from 'axios';
 
 export default function Home() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -102,19 +101,36 @@ export default function Home() {
       const formattedDate = format(date, 'yyyy-MM-dd');
       console.log('날짜 상세 정보 조회:', formattedDate);
       
-      const response = await axios.get(`/api/vacation/date/${formattedDate}`);
-      console.log('날짜 상세 데이터:', response.data);
+      // API URL을 상대 경로로 설정하여 현재 호스트/포트를 자동으로 사용
+      const apiUrl = `/api/vacation/date/${formattedDate}`;
+      console.log('API 요청 URL:', apiUrl);
+      
+      // Axios 대신 fetch API 사용 (네이티브 함수)
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API 응답 오류: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('날짜 상세 데이터:', data);
       
       // 응답 데이터 확인 및 처리
       let vacations = [];
-      if (response.data && Array.isArray(response.data.vacations)) {
-        vacations = response.data.vacations;
-      } else if (response.data && typeof response.data === 'object') {
+      if (data && Array.isArray(data.vacations)) {
+        vacations = data.vacations;
+      } else if (data && typeof data === 'object') {
         // 다른 형태의 응답 처리
-        if (Array.isArray(response.data)) {
-          vacations = response.data;
+        if (Array.isArray(data)) {
+          vacations = data;
         } else {
-          vacations = response.data.vacations || [];
+          vacations = data.vacations || [];
         }
       }
       
@@ -122,9 +138,18 @@ export default function Home() {
       setDateVacations(vacations);
     } catch (error) {
       console.error('상세 정보 가져오기 오류:', error);
+      
+      // 자세한 에러 정보 로깅
+      if (error instanceof Error) {
+        console.error('에러 메시지:', error.message);
+        console.error('에러 스택:', error.stack);
+      }
+      
       setDateVacations([]);
       // 에러 발생 시 알림 표시
-      showNotification('날짜 상세 정보를 가져오는데 실패했습니다.', 'error');
+      showNotification('네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.', 'error');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -221,102 +246,78 @@ export default function Home() {
   };
 
   return (
-    <main className="flex flex-col items-center justify-center min-h-screen p-6 bg-gray-50">
-      <h1 className="text-4xl font-extrabold mb-8 text-center bg-gradient-to-r from-blue-600 to-indigo-800 text-transparent bg-clip-text drop-shadow-md">휴가 관리 시스템</h1>
-      
-      <div className="max-w-6xl mx-auto">
-        <div className="w-full max-w-4xl">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <VacationCalendar
-              onDateSelect={handleDateSelect}
-              onRequestSelect={handleRequestSelect}
-              isAdmin={false}
-              maxPeopleAllowed={5}
-            />
-          </motion.div>
+    <main className="min-h-screen bg-gray-50">
+      <div className="container mx-auto py-4 sm:py-8 px-2 sm:px-6 overflow-hidden">
+        <header className="text-center mb-4 sm:mb-8">
+          <h1 className="text-2xl sm:text-4xl font-bold text-blue-700 mb-1 sm:mb-2">휴가 관리 시스템</h1>
+          <p className="text-xs sm:text-base text-gray-600">팀원들의 휴가 일정을 한눈에 확인하고 관리하세요.</p>
+        </header>
+        
+        <div className="max-w-5xl mx-auto">
+          <VacationCalendar
+            onDateSelect={handleDateSelect}
+            onRequestSelect={handleDateSelect}
+            key={`calendar-${isUpdated}`}
+            maxPeopleAllowed={5}
+          />
         </div>
       </div>
 
-      {/* 알림 메시지 */}
-      <AnimatePresence>
-        {notification.show && (
-          <motion.div 
-            initial={{ opacity: 0, y: -50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -50 }}
-            className={`fixed top-4 right-4 p-4 rounded-lg shadow-lg ${
-              notification.type === 'error' ? 'bg-red-500' : 'bg-green-500'
-            } text-white`}
-          >
-            {notification.message}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* 휴가 상세 정보 모달 */}
       <AnimatePresence>
-        {showDetails && selectedDate && !showForm && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 flex items-center justify-center p-4 z-50"
-            onClick={handleCloseDetails}
-          >
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="w-full max-w-md bg-white rounded-lg shadow-xl overflow-hidden"
-              onClick={e => e.stopPropagation()}
-            >
-              <VacationDetails
-                date={selectedDate}
-                vacations={dateVacations}
-                isLoading={isLoading}
-                onApplyVacation={handleShowVacationForm}
-                onClose={handleCloseDetails}
-                onVacationUpdated={handleVacationUpdated}
-                maxPeople={5}
-              />
-            </motion.div>
-          </motion.div>
+        {showDetails && selectedDate && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-2 sm:p-4 bg-opacity-50">
+            <VacationDetails
+              date={selectedDate}
+              vacations={dateVacations}
+              onClose={handleCloseDetails}
+              onApplyVacation={handleShowVacationForm}
+              isLoading={isLoading}
+              maxPeople={5}
+              onVacationUpdated={handleVacationUpdated}
+            />
+          </div>
         )}
       </AnimatePresence>
 
       {/* 휴가 신청 폼 모달 */}
       <AnimatePresence>
-        {showForm && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 flex items-center justify-center p-4 z-50"
-            onClick={handleCloseVacationForm}
-          >
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="w-full max-w-md bg-white rounded-lg shadow-xl overflow-hidden"
-              onClick={e => e.stopPropagation()}
+        {showForm && selectedDate && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-2 sm:p-4 bg-black bg-opacity-50">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-xl shadow-xl p-4 sm:p-6 max-w-md w-full"
             >
               <VacationForm
                 initialDate={selectedDate}
                 onSubmitSuccess={() => {
                   handleCloseVacationForm();
                   handleVacationUpdated();
-                  showNotification('휴가가 성공적으로 신청되었습니다.', 'success');
+                  showNotification('휴가 신청이 완료되었습니다.', 'success');
                 }}
                 onCancel={handleCloseVacationForm}
                 isSubmitting={isSubmitting}
                 setIsSubmitting={setIsSubmitting}
               />
             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 알림 메시지 */}
+      <AnimatePresence>
+        {notification.show && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className={`fixed bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-full ${
+              notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'
+            } text-white shadow-lg text-xs sm:text-sm`}
+          >
+            {notification.message}
           </motion.div>
         )}
       </AnimatePresence>

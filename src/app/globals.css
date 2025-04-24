@@ -23,4 +23,18 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* 모바일 최적화를 위한 추가 스타일 */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* 최소 글꼴 크기 보장 */
+@media screen and (max-width: 480px) {
+  * {
+    font-size-adjust: 0.5;
+  }
 }
