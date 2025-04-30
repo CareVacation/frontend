@@ -145,7 +145,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
       setCalendarData(formattedData);
       
       // 선택된 날짜가 있다면 해당 날짜의 데이터를 다시 가져옴
-      if (selectedDate) {
+      if (selectedDate && isSameMonth(selectedDate, currentDate)) {
         fetchSelectedDateData(selectedDate);
       }
       
@@ -192,31 +192,22 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
       
       // 데이터 업데이트 시 원본 데이터 보존
       if (data) {
-        // 중요: 여기서 새 데이터 객체 생성하지 않고 기존 데이터 통합
-        const newCalendarData = { ...calendarData };
-        
-        // API에서 받은 maxPeople 값 확인 및 기존 값과 비교
-        console.log(`${formattedDate} 날짜의 최대 인원 변경: ${newCalendarData[formattedDate]?.maxPeople || '없음'} -> ${data.maxPeople || 3}`);
-        
         // 데이터 병합 - 기존 데이터 구조 유지하면서 API 응답 반영
-        newCalendarData[formattedDate] = {
-          ...newCalendarData[formattedDate], // 기존 데이터 유지
-          date: formattedDate,
-          vacations: data.vacations || [],
-          // maxPeople이 있으면 그 값 사용, 없으면 기존 값 유지하고 그것도 없으면 기본값 3 사용
-          maxPeople: data.maxPeople !== undefined ? data.maxPeople : 
-                    (newCalendarData[formattedDate]?.maxPeople || 3),
-          // totalVacationers 계산 - API에서 제공하면 사용, 아니면 계산
-          totalVacationers: data.totalVacationers !== undefined 
-                          ? data.totalVacationers 
-                          : (data.vacations || []).filter((v: VacationRequest) => v.status !== 'rejected').length
-        };
-        
-        // 다시 전체 데이터 업데이트
-        setCalendarData(newCalendarData);
+        setCalendarData(prev => ({
+          ...prev,
+          [formattedDate]: {
+            ...(prev[formattedDate] || {}),
+            date: formattedDate,
+            vacations: data.vacations || [],
+            maxPeople: data.maxPeople !== undefined ? data.maxPeople : (prev[formattedDate]?.maxPeople || 3),
+            totalVacationers: data.totalVacationers !== undefined
+              ? data.totalVacationers
+              : (data.vacations || []).filter((v: VacationRequest) => v.status !== 'rejected').length
+          }
+        }));
         
         // 변경된 데이터 확인 로그
-        console.log(`${formattedDate} 날짜 데이터 업데이트 완료:`, newCalendarData[formattedDate]);
+        console.log(`${formattedDate} 날짜 데이터 업데이트 완료:`, calendarData[formattedDate]);
       }
     } catch (error) {
       console.error('선택된 날짜 데이터 로딩 오류:', error);
@@ -535,8 +526,8 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
             let dayColor = getDayColor(day);
             const dateKey = format(day, 'yyyy-MM-dd');
             const dayData = calendarData[dateKey];
-            const vacationersCount = dayData?.totalVacationers || 0;
             const vacations = getDayVacations(day);
+            const vacationersCount = vacations.filter(v => v.status !== 'rejected').length;
             const maxPeople = dayData?.maxPeople || 3;
             
             return (

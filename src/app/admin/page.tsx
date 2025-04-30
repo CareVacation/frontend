@@ -115,10 +115,9 @@ export default function AdminPage() {
           };
         }
         
-        days[date].people.push(vacation);
-
-        // 거부된 휴가는 카운트에 포함시키지 않음
+        // 거부된 휴가는 people과 count 모두에 포함하지 않음
         if (vacation.status !== 'rejected') {
+          days[date].people.push(vacation);
           days[date].count += 1;
         }
       });
