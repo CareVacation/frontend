@@ -785,7 +785,10 @@ export default function AdminPage() {
                     vacationLimits={vacationLimits}
                     onClose={handleCloseLimitPanel}
                     onLimitSet={handleLimitSet}
-                    onUpdateSuccess={() => fetchMonthData()}
+                    onUpdateSuccess={() => {
+                      fetchMonthData();
+                      setCurrentDate(prev => new Date(prev));
+                    }}
                     vacationDays={vacationDays}
                   />
                 </motion.div>

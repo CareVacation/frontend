@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { VacationLimit, DayInfo } from '@/types/vacation';
-import { format, addDays, startOfMonth, endOfMonth } from 'date-fns';
+import { format, addDays, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
 interface AdminPanelProps {
@@ -14,6 +14,7 @@ interface AdminPanelProps {
 }
 
 const AdminPanel = ({ currentDate, onClose, onUpdateSuccess, vacationLimits, onLimitSet }: AdminPanelProps) => {
+  const [panelDate, setPanelDate] = useState(currentDate);
   const [limits, setLimits] = useState<VacationLimit[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -21,13 +22,17 @@ const AdminPanel = ({ currentDate, onClose, onUpdateSuccess, vacationLimits, onL
   const [message, setMessage] = useState<{ type: string; text: string } | null>(null);
 
   useEffect(() => {
-    fetchMonthLimits();
+    setPanelDate(currentDate); // 모달 열릴 때 부모 값으로 초기화
   }, [currentDate]);
+
+  useEffect(() => {
+    fetchMonthLimits();
+  }, [panelDate]);
 
   const fetchMonthLimits = async () => {
     try {
-      const monthStart = startOfMonth(currentDate);
-      const monthEnd = endOfMonth(currentDate);
+      const monthStart = startOfMonth(panelDate);
+      const monthEnd = endOfMonth(panelDate);
       const response = await fetch(`/api/vacation/limits?start=${format(monthStart, 'yyyy-MM-dd')}&end=${format(monthEnd, 'yyyy-MM-dd')}`);
       
       if (!response.ok) {
@@ -110,16 +115,12 @@ const AdminPanel = ({ currentDate, onClose, onUpdateSuccess, vacationLimits, onL
       // 변경 사항이 저장된 후 성공 콜백 호출
       if (onUpdateSuccess) {
         console.log('[AdminPanel] 성공 콜백 호출');
-        
-        // 먼저 즉시 호출
         try {
           await onUpdateSuccess();
           console.log('[AdminPanel] 첫 번째 데이터 갱신 완료');
         } catch (err) {
           console.error('[AdminPanel] 첫 번째 데이터 갱신 실패:', err);
         }
-        
-        // 짧은 지연 후 두 번째 호출 (Firebase 갱신 지연 고려)
         setTimeout(async () => {
           try {
             console.log('[AdminPanel] 지연 성공 콜백 호출');
@@ -130,6 +131,9 @@ const AdminPanel = ({ currentDate, onClose, onUpdateSuccess, vacationLimits, onL
           }
         }, 1000);
       }
+      
+      // 저장 후 최신 데이터 즉시 반영
+      await fetchMonthLimits();
       
       // 약간의 지연 후 패널 닫기
       setTimeout(() => {
@@ -152,9 +156,25 @@ const AdminPanel = ({ currentDate, onClose, onUpdateSuccess, vacationLimits, onL
   return (
     <div className="bg-white rounded-lg p-6 max-w-3xl w-full max-h-[90vh] overflow-auto shadow-2xl border-2 border-blue-500">
       <div className="flex justify-between items-center mb-6 border-b pb-4 border-blue-200">
-        <h2 className="text-2xl font-bold text-blue-700">
-          {format(currentDate, 'yyyy년 MM월', { locale: ko })} 휴가 제한 설정
-        </h2>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setPanelDate(prev => subMonths(prev, 1))}
+            className="px-2 py-1 rounded bg-blue-100 hover:bg-blue-200 text-blue-700"
+            disabled={isSaving || isSubmitting}
+          >
+            ◀
+          </button>
+          <h2 className="text-2xl font-bold text-blue-700">
+            {format(panelDate, 'yyyy년 MM월', { locale: ko })} 휴가 제한 설정
+          </h2>
+          <button
+            onClick={() => setPanelDate(prev => addMonths(prev, 1))}
+            className="px-2 py-1 rounded bg-blue-100 hover:bg-blue-200 text-blue-700"
+            disabled={isSaving || isSubmitting}
+          >
+            ▶
+          </button>
+        </div>
         <button
           onClick={onClose}
           className="text-gray-500 hover:text-red-600 transition-colors"
