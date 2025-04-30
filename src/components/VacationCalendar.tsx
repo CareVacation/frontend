@@ -9,8 +9,7 @@ import { FiChevronLeft, FiChevronRight, FiX, FiCalendar, FiRefreshCw, FiAlertCir
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
-const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSelect, isAdmin = false, maxPeopleAllowed = 5 }) => {
-  const [currentDate, setCurrentDate] = useState(new Date());
+const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrentDate: (date: Date) => void }> = ({ onDateSelect, onRequestSelect, isAdmin = false, maxPeopleAllowed = 5, currentDate, setCurrentDate }) => {
   const [calendarData, setCalendarData] = useState<VacationData>({});
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);

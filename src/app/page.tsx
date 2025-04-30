@@ -261,6 +261,8 @@ export default function Home() {
             onRequestSelect={handleDateSelect}
             key={`calendar-${isUpdated}`}
             maxPeopleAllowed={5}
+            currentDate={currentDate}
+            setCurrentDate={setCurrentDate}
           />
         </div>
       </div>

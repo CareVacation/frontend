@@ -31,6 +31,8 @@ export interface CalendarProps {
   onRequestSelect?: (date: Date) => Promise<void>;
   isAdmin?: boolean;
   maxPeopleAllowed?: number;
+  currentDate: Date;
+  setCurrentDate: (date: Date) => void;
 }
 
 export interface VacationDetailsProps {
