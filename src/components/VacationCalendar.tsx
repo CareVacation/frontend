@@ -71,7 +71,7 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
       console.log('API 응답 데이터 수신:', apiData);
       
       // API 응답을 VacationData 형식으로 변환
-      const formattedData: VacationData = { ...calendarData }; // 기존 데이터 유지
+      const formattedData: VacationData = {};
       
       // 응답이 { dates: { ... } } 형식으로 왔는지 확인
       if (apiData && apiData.dates && typeof apiData.dates === 'object') {
@@ -235,40 +235,8 @@ const VacationCalendar: React.FC<CalendarProps> = ({ onDateSelect, onRequestSele
   // 컴포넌트 마운트 시 데이터 로드 로직 강화
   useEffect(() => {
     console.log('캘린더 마운트됨 - 초기 데이터 로드 시작');
-    
-    // 초기 데이터 로드 함수
-    const initialLoad = async () => {
-      try {
-        // 첫 번째 데이터 로드
-        await fetchCalendarData();
-        console.log('초기 데이터 로드 완료');
-        
-        // 짧은 지연 후 다시 로드 (데이터 동기화 확인)
-        setTimeout(async () => {
-          console.log('보조 데이터 로드 시작 (갱신 확인)');
-          await fetchCalendarData();
-          console.log('보조 데이터 로드 완료');
-          
-          // 모든 날짜의 휴가 정보 로깅
-          logAllVacations();
-          
-          // 3초 후 최종 데이터 확인
-          setTimeout(async () => {
-            console.log('최종 데이터 로드 시작 (마지막 확인)');
-            await fetchCalendarData();
-            console.log('최종 데이터 로드 완료');
-          }, 3000);
-        }, 1000);
-      } catch (error) {
-        console.error('초기 데이터 로드 실패:', error);
-      }
-    };
-    
-    // 초기 로드 실행
-    initialLoad();
-    
-    // 컴포넌트 언마운트 시 타이머 정리는 불필요 (비동기 함수에서 처리)
-  }, []); // 의존성 배열이 비어있어 마운트 시에만 실행
+    fetchCalendarData();
+  }, []); // 마운트 시 한 번만 실행
 
   // 월 변경 시 데이터 갱신
   useEffect(() => {

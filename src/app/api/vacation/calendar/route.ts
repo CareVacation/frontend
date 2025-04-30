@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { format, isValid, parse, parseISO } from 'date-fns';
-import { getVacationLimitForDate, getVacationRequestsForDateRange } from '@/lib/vacationService';
+import { getVacationLimitForDate, getVacationRequestsForDateRange, getVacationLimitsForMonthRange } from '@/lib/vacationService';
 import { VacationData, VacationRequest, VacationLimit } from '@/types/vacation';
 
 // 기본 CORS 및 캐시 방지 헤더 설정
@@ -67,22 +67,17 @@ export async function GET(request: NextRequest) {
       groupedData[date].totalVacationers += 1;
     }
 
-    // 각 날짜에 대한 제한 정보 가져오기
-    const dateList = Object.keys(groupedData);
-    for (const date of dateList) {
-      try {
-        const limitData = await getVacationLimitForDate(parseISO(date));
-        if (limitData && limitData.maxPeople !== undefined) {
-          groupedData[date].maxPeople = limitData.maxPeople;
-        } else {
-          groupedData[date].maxPeople = 3; // 기본값
-        }
-        console.log(`Limit for ${date}: ${groupedData[date].maxPeople}`);
-      } catch (error) {
-        console.error(`Error fetching limit for date ${date}:`, error);
-        groupedData[date].maxPeople = 3; // 에러 발생 시 기본값
-      }
-    }
+    // 각 날짜에 대한 제한 정보 한 번에 가져오기
+    const limits = await getVacationLimitsForMonthRange(startDateParam, endDateParam);
+    const limitsMap: Record<string, number> = {};
+    limits.forEach(limit => {
+      limitsMap[limit.date] = limit.maxPeople;
+    });
+
+    // groupedData에 maxPeople 할당
+    Object.keys(groupedData).forEach(date => {
+      groupedData[date].maxPeople = limitsMap[date] ?? 3;
+    });
 
     // startDate ~ endDate 사이의 모든 날짜에 대해 데이터 채우기
     const start = parseISO(startDateParam);
@@ -91,36 +86,15 @@ export async function GET(request: NextRequest) {
 
     while (current <= end) {
       const dateStr = format(current, 'yyyy-MM-dd');
-      
-      // 이 날짜에 대한 데이터가 없으면 생성
       if (!groupedData[dateStr]) {
-        // 제한 정보 가져오기
-        try {
-          const limitData = await getVacationLimitForDate(parseISO(dateStr));
-          const maxPeople = limitData?.maxPeople ?? 3;
-          
-          console.log(`Added empty date ${dateStr} with limit: ${maxPeople}`);
-          
-          groupedData[dateStr] = {
-            date: dateStr,
-            totalVacationers: 0,
-            vacations: [],
-            people: [],
-            maxPeople
-          };
-        } catch (error) {
-          console.error(`Error fetching limit for date ${dateStr}:`, error);
-          groupedData[dateStr] = {
-            date: dateStr,
-            totalVacationers: 0,
-            vacations: [],
-            people: [],
-            maxPeople: 3 // 에러 발생 시 기본값
-          };
-        }
+        groupedData[dateStr] = {
+          date: dateStr,
+          totalVacationers: 0,
+          vacations: [],
+          people: [],
+          maxPeople: limitsMap[dateStr] ?? 3
+        };
       }
-      
-      // 다음 날짜로 이동
       current.setDate(current.getDate() + 1);
     }
 
