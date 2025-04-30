@@ -606,6 +606,8 @@ export default function AdminPage() {
                   onDateSelect={handleDateSelect}
                   isAdmin={true}
                   maxPeopleAllowed={5}
+                  currentDate={currentDate}
+                  setCurrentDate={setCurrentDate}
                 />
               </div>
             </div>
