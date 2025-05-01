@@ -695,7 +695,7 @@ export default function AdminPage() {
                       <div key={request.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                         <div className="flex justify-between items-start">
                           <div>
-                            <h3 className="font-semibold text-lg">{request.userName}</h3>
+                            <h3 className="font-semibold text-lg text-gray-900">{request.userName}</h3>
                             <p className="text-gray-600 text-sm">{format(new Date(request.date), 'yyyy년 MM월 dd일 (EEE)', { locale: ko })}</p>
                             <p className="mt-2 text-sm bg-gray-50 p-2 rounded">{request.reason}</p>
                             <p className="text-xs text-gray-500 mt-1">{request.type === 'regular' ? '일반 휴무' : request.type === 'mandatory' ? '필수 휴무' : request.type}</p>
