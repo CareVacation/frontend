@@ -277,7 +277,13 @@ export default function Home() {
               onClose={handleCloseDetails}
               onApplyVacation={handleShowVacationForm}
               isLoading={isLoading}
-              maxPeople={5}
+              maxPeople={
+                (() => {
+                  const key = format(selectedDate, 'yyyy-MM-dd');
+                  const limit = vacationDays[key]?.limit;
+                  return typeof limit === 'number' ? limit : 3;
+                })()
+              }
               onVacationUpdated={handleVacationUpdated}
             />
           </div>
