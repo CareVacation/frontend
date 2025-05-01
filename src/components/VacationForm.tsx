@@ -31,8 +31,8 @@ const VacationForm: React.FC<VacationFormProps> = ({
       isValid = false;
     }
 
-    if (!reason.trim()) {
-      newErrors.reason = '휴가 사유를 입력해주세요';
+    if (type === 'mandatory' && !reason.trim()) {
+      newErrors.reason = '휴무 사유를 입력해주세요';
       isValid = false;
     }
 
@@ -51,7 +51,7 @@ const VacationForm: React.FC<VacationFormProps> = ({
         const baseUrl = window.location.origin;
         const apiUrl = `${baseUrl}/api/vacation/request`;
         
-        // fetch API를 사용하여 휴가 신청
+        // fetch API를 사용하여 휴무 신청
         const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
@@ -73,14 +73,14 @@ const VacationForm: React.FC<VacationFormProps> = ({
         // 성공 콜백 호출
         onSubmitSuccess();
       } catch (error) {
-        console.error('휴가 신청 오류:', error);
+        console.error('휴무 신청 오류:', error);
         
         if (error instanceof Error) {
           console.error('에러 메시지:', error.message);
           console.error('에러 스택:', error.stack);
         }
         
-        alert('휴가 신청 중 오류가 발생했습니다. 네트워크 연결을 확인해주세요.');
+        alert('휴무 신청 중 오류가 발생했습니다. 네트워크 연결을 확인해주세요.');
       } finally {
         setIsSubmitting(false);
       }
@@ -92,14 +92,14 @@ const VacationForm: React.FC<VacationFormProps> = ({
       {/* 헤더 */}
       <div className="border-b pb-3 sm:pb-4 mb-4 sm:mb-5">
         <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-1">
-          휴가 신청
+          휴무 신청
         </h2>
         <p className="text-sm sm:text-base text-gray-600">
           {initialDate && (
             <span className="text-indigo-600 font-medium">
               {format(initialDate, 'yyyy년 MM월 dd일', { locale: ko })}
             </span>
-          )} 휴가를 신청합니다
+          )} 휴무를 신청합니다
         </p>
       </div>
       
@@ -127,7 +127,8 @@ const VacationForm: React.FC<VacationFormProps> = ({
         
         <div>
           <label htmlFor="reason" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-            휴가 사유 *
+            휴무 사유{type === 'mandatory' && <span className="text-red-500 ml-0.5">*</span>}
+            {type === 'regular' && <span className="text-gray-400 ml-1 text-xs">(선택 사항)</span>}
           </label>
           <textarea
             id="reason"
@@ -137,7 +138,7 @@ const VacationForm: React.FC<VacationFormProps> = ({
               errors.reason ? 'border-red-500' : 'border-gray-300'
             }`}
             rows={4}
-            placeholder="휴가 사유를 입력하세요"
+            placeholder={type === 'mandatory' ? '휴무 사유를 입력하세요' : '휴무 사유를 입력하세요 (선택 사항)'}
             disabled={isSubmitting}
           />
           {errors.reason && (
@@ -147,7 +148,7 @@ const VacationForm: React.FC<VacationFormProps> = ({
         
         <div>
           <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">
-            휴가 유형 *
+            휴무 유형 *
           </label>
           <div className="grid grid-cols-2 gap-2 sm:gap-4">
             <label className={`flex items-center p-2 sm:p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}>
@@ -163,7 +164,7 @@ const VacationForm: React.FC<VacationFormProps> = ({
               <div className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full mr-2 sm:mr-3 flex items-center justify-center border ${type === 'regular' ? 'border-0 bg-indigo-600' : 'border-gray-400'}`}>
                 {type === 'regular' && <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-white rounded-full"></div>}
               </div>
-              <span className="text-gray-700 font-medium text-xs sm:text-sm">일반 휴가</span>
+              <span className="text-gray-700 font-medium text-xs sm:text-sm">일반 휴무</span>
             </label>
             <label className={`flex items-center p-2 sm:p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}>
               <input
@@ -178,7 +179,7 @@ const VacationForm: React.FC<VacationFormProps> = ({
               <div className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full mr-2 sm:mr-3 flex items-center justify-center border ${type === 'mandatory' ? 'border-0 bg-green-600' : 'border-gray-400'}`}>
                 {type === 'mandatory' && <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-white rounded-full"></div>}
               </div>
-              <span className="text-gray-700 font-medium text-xs sm:text-sm">필수 휴가</span>
+              <span className="text-gray-700 font-medium text-xs sm:text-sm">필수 휴무</span>
             </label>
           </div>
         </div>

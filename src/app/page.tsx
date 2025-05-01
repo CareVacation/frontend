@@ -35,20 +35,20 @@ export default function Home() {
       const year = currentDate.getFullYear();
       const month = currentDate.getMonth();
       
-      // 휴가 데이터와 제한 데이터를 동시에 가져오기
+      // 휴무 데이터와 제한 데이터를 동시에 가져오기
       const [vacations, limits] = await Promise.all([
         getVacationsForMonth(year, month),
         getVacationLimitsForMonth(year, month)
       ]);
 
-      // 휴가 제한 데이터 처리
+      // 휴무 제한 데이터 처리
       const limitsMap: Record<string, VacationLimit> = {};
       limits.forEach(limit => {
         limitsMap[limit.date] = limit;
       });
       setVacationLimits(limitsMap);
       
-      // 날짜별 휴가 정보 생성
+      // 날짜별 휴무 정보 생성
       const days: Record<string, DayInfo> = {};
       
       vacations.forEach(vacation => {
@@ -64,13 +64,13 @@ export default function Home() {
         
         days[date].people.push(vacation);
         
-        // 거부된 휴가는 카운트에 포함시키지 않음
+        // 거부된 휴무는 카운트에 포함시키지 않음
         if (vacation.status !== 'rejected') {
           days[date].count += 1;
         }
       });
       
-      // 휴가 제한 상태 업데이트
+      // 휴무 제한 상태 업데이트
       Object.keys(days).forEach(date => {
         const limit = limitsMap[date] || { maxPeople: 3 }; // 기본값: 3명
         const currentCount = days[date].count;
@@ -134,7 +134,7 @@ export default function Home() {
         }
       }
       
-      console.log('가져온 휴가 목록:', vacations);
+      console.log('가져온 휴무 목록:', vacations);
       setDateVacations(vacations);
     } catch (error) {
       console.error('상세 정보 가져오기 오류:', error);
@@ -226,10 +226,10 @@ export default function Home() {
     try {
       await setVacationLimit(date, maxPeople);
       await fetchMonthData();
-      showNotification('휴가 제한 인원이 설정되었습니다.', 'success');
+      showNotification('휴무 제한 인원이 설정되었습니다.', 'success');
     } catch (error) {
-      console.error('휴가 제한 설정 중 오류 발생:', error);
-      showNotification('휴가 제한 설정 중 오류가 발생했습니다.', 'error');
+      console.error('휴무 제한 설정 중 오류 발생:', error);
+      showNotification('휴무 제한 설정 중 오류가 발생했습니다.', 'error');
     }
   };
 
@@ -251,8 +251,8 @@ export default function Home() {
     <main className="min-h-screen bg-gray-50">
       <div className="container mx-auto py-4 sm:py-8 px-2 sm:px-6 overflow-hidden">
         <header className="text-center mb-4 sm:mb-8">
-          <h1 className="text-2xl sm:text-4xl font-bold text-blue-700 mb-1 sm:mb-2">휴가 관리 시스템</h1>
-          <p className="text-xs sm:text-base text-gray-600">팀원들의 휴가 일정을 한눈에 확인하고 관리하세요.</p>
+          <h1 className="text-2xl sm:text-4xl font-bold text-blue-700 mb-1 sm:mb-2">휴무 관리 시스템</h1>
+          <p className="text-xs sm:text-base text-gray-600">팀원들의 휴무 일정을 한눈에 확인하고 관리하세요.</p>
         </header>
         
         <div className="max-w-5xl mx-auto">
@@ -267,7 +267,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 휴가 상세 정보 모달 */}
+      {/* 휴무 상세 정보 모달 */}
       <AnimatePresence>
         {showDetails && selectedDate && (
           <div className="fixed inset-0 flex items-center justify-center z-50 p-2 sm:p-4 bg-opacity-50">
@@ -284,7 +284,7 @@ export default function Home() {
         )}
       </AnimatePresence>
 
-      {/* 휴가 신청 폼 모달 */}
+      {/* 휴무 신청 폼 모달 */}
       <AnimatePresence>
         {showForm && selectedDate && (
           <div className="fixed inset-0 flex items-center justify-center z-50 p-2 sm:p-4 bg-black bg-opacity-50">
@@ -299,7 +299,7 @@ export default function Home() {
                 onSubmitSuccess={() => {
                   handleCloseVacationForm();
                   handleVacationUpdated();
-                  showNotification('휴가 신청이 완료되었습니다.', 'success');
+                  showNotification('휴무 신청이 완료되었습니다.', 'success');
                 }}
                 onCancel={handleCloseVacationForm}
                 isSubmitting={isSubmitting}

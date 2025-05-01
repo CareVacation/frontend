@@ -36,7 +36,7 @@ const AdminPanel = ({ currentDate, onClose, onUpdateSuccess, vacationLimits, onL
       const response = await fetch(`/api/vacation/limits?start=${format(monthStart, 'yyyy-MM-dd')}&end=${format(monthEnd, 'yyyy-MM-dd')}`);
       
       if (!response.ok) {
-        throw new Error('휴가 제한 정보를 가져오는데 실패했습니다.');
+        throw new Error('휴무 제한 정보를 가져오는데 실패했습니다.');
       }
       
       const data = await response.json();

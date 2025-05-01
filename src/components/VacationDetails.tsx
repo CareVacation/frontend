@@ -21,7 +21,7 @@ const VacationDetails: React.FC<VacationDetailsProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // 휴가 요청을 상태별로 정렬 (승인됨 -> 대기중 -> 거부됨)
+    // 휴무 요청을 상태별로 정렬 (승인됨 -> 대기중 -> 거부됨)
     const sorted = [...vacations].sort((a, b) => {
       if (a.status === 'approved' && b.status !== 'approved') return -1;
       if (a.status !== 'approved' && b.status === 'approved') return 1;
@@ -34,7 +34,7 @@ const VacationDetails: React.FC<VacationDetailsProps> = ({
 
   const handleApplyClick = () => {
     setShowForm(true);
-    // VacationCalendar에서 휴가 신청 버튼을 클릭했을 때 호출되는 콜백은 여기서는 호출하지 않음
+    // VacationCalendar에서 휴무 신청 버튼을 클릭했을 때 호출되는 콜백은 여기서는 호출하지 않음
   };
 
   const handleFormSuccess = async () => {
@@ -48,7 +48,7 @@ const VacationDetails: React.FC<VacationDetailsProps> = ({
     setShowForm(false);
   };
 
-  // 유효한(승인됨 또는 대기중) 휴가 수 계산
+  // 유효한(승인됨 또는 대기중) 휴무 수 계산
   const validVacationCount = vacations.filter(v => v.status !== 'rejected').length;
   const remainingSlots = maxPeople - validVacationCount;
   const isFull = remainingSlots <= 0;
@@ -82,7 +82,7 @@ const VacationDetails: React.FC<VacationDetailsProps> = ({
                   <span className="bg-blue-100 text-blue-600 p-1 sm:p-1.5 rounded-md mr-1.5 sm:mr-2">
                     <FiCalendar size={16} className="sm:w-[18px] sm:h-[18px]" />
                   </span>
-                  휴가 상세 정보
+                  휴무 상세 정보
                 </h2>
                 <button 
                   onClick={onClose}
@@ -104,7 +104,7 @@ const VacationDetails: React.FC<VacationDetailsProps> = ({
               <div className="flex items-center justify-between mb-3 sm:mb-4">
                 <div className="flex items-center text-gray-700">
                   <FiUsers className="mr-1.5 sm:mr-2" size={16} />
-                  <span className="font-medium text-sm sm:text-base">휴가 신청 현황</span>
+                  <span className="font-medium text-sm sm:text-base">휴무 신청 현황</span>
                 </div>
                 <div className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium flex items-center ${
                   isFull ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
@@ -142,7 +142,7 @@ const VacationDetails: React.FC<VacationDetailsProps> = ({
                         </div>
                         <div className="flex items-center text-xs sm:text-sm text-gray-500">
                           <FiClock className="mr-1 w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                          <span>{vacation.type}</span>
+                          <span>{vacation.type === 'regular' ? '일반 휴무' : vacation.type === 'mandatory' ? '필수 휴무' : vacation.type}</span>
                         </div>
                         {vacation.reason && (
                           <div className="mt-1.5 sm:mt-2 text-xs sm:text-sm text-gray-600 bg-white p-1.5 sm:p-2 rounded border border-gray-100">
@@ -158,8 +158,8 @@ const VacationDetails: React.FC<VacationDetailsProps> = ({
                   <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3">
                     <FiUsers className="text-gray-400 w-4.5 h-4.5 sm:w-6 sm:h-6" />
                   </div>
-                  <p className="text-gray-500 mb-1 text-sm sm:text-base">이 날짜에는 휴가 신청자가 없습니다</p>
-                  <p className="text-[10px] sm:text-xs text-gray-400">첫 번째로 휴가를 신청해보세요!</p>
+                  <p className="text-gray-500 mb-1 text-sm sm:text-base">이 날짜에는 휴무 신청자가 없습니다</p>
+                  <p className="text-[10px] sm:text-xs text-gray-400">첫 번째로 휴무를 신청해보세요!</p>
                 </div>
               )}
               
@@ -174,7 +174,7 @@ const VacationDetails: React.FC<VacationDetailsProps> = ({
                   }`}
                 >
                   <FiSend className="mr-1.5 sm:mr-2 w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  휴가 신청하기
+                  휴무 신청하기
                 </button>
               </div>
             </div>

@@ -26,7 +26,7 @@ export default function AdminPage() {
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   
-  // 휴가 필터링 상태
+  // 휴무 필터링 상태
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [allRequests, setAllRequests] = useState<VacationRequest[]>([]);
 
@@ -88,20 +88,20 @@ export default function AdminPage() {
       const year = currentDate.getFullYear();
       const month = currentDate.getMonth();
       
-      // 휴가 데이터와 제한 데이터를 동시에 가져오기
+      // 휴무 데이터와 제한 데이터를 동시에 가져오기
       const [vacations, limits] = await Promise.all([
         getVacationsForMonth(year, month),
         getVacationLimitsForMonth(year, month)
       ]);
 
-      // 휴가 제한 데이터 처리
+      // 휴무 제한 데이터 처리
       const limitsMap: Record<string, VacationLimit> = {};
       limits.forEach(limit => {
         limitsMap[limit.date] = limit;
       });
       setVacationLimits(limitsMap);
       
-      // 날짜별 휴가 정보 생성
+      // 날짜별 휴무 정보 생성
       const days: Record<string, DayInfo> = {};
       
       vacations.forEach(vacation => {
@@ -115,14 +115,14 @@ export default function AdminPage() {
           };
         }
         
-        // 거부된 휴가는 people과 count 모두에 포함하지 않음
+        // 거부된 휴무는 people과 count 모두에 포함하지 않음
         if (vacation.status !== 'rejected') {
           days[date].people.push(vacation);
           days[date].count += 1;
         }
       });
       
-      // 휴가 제한 상태 업데이트
+      // 휴무 제한 상태 업데이트
       Object.keys(days).forEach(date => {
         const limit = limitsMap[date] || { maxPeople: 3 }; // 기본값: 3명
         const currentCount = days[date].count;
@@ -167,8 +167,8 @@ export default function AdminPage() {
       const pendingOnly = data.requests.filter((req: VacationRequest) => req.status === 'pending') || [];
       setPendingRequests(pendingOnly);
     } catch (error) {
-      console.error('휴가 요청을 불러오는 중 오류 발생:', error);
-      showNotification('휴가 요청을 불러오는 중 오류가 발생했습니다.', 'error');
+      console.error('휴무 요청을 불러오는 중 오류 발생:', error);
+      showNotification('휴무 요청을 불러오는 중 오류가 발생했습니다.', 'error');
     }
   };
 
@@ -202,7 +202,7 @@ export default function AdminPage() {
         }
       }
       
-      console.log(`${formattedDate} 날짜의 휴가 데이터:`, vacations);
+      console.log(`${formattedDate} 날짜의 휴무 데이터:`, vacations);
       setDateVacations(vacations);
     } catch (error) {
       console.error('상세 정보 가져오기 오류:', error);
@@ -314,7 +314,7 @@ export default function AdminPage() {
       if (selectedDate) {
         await fetchDateDetails(selectedDate);
         
-        // 전체 휴가 요청 목록도 갱신
+        // 전체 휴무 요청 목록도 갱신
         await fetchAllRequests();
         
         // 현재 선택된 날짜에 대한 필터 다시 적용
@@ -324,10 +324,10 @@ export default function AdminPage() {
           setAllRequests(dateFilteredRequests);
         }
       }
-      showNotification('휴가 제한 인원이 설정되었습니다.', 'success');
+      showNotification('휴무 제한 인원이 설정되었습니다.', 'success');
     } catch (error) {
-      console.error('휴가 제한 설정 중 오류 발생:', error);
-      showNotification('휴가 제한 설정 중 오류가 발생했습니다.', 'error');
+      console.error('휴무 제한 설정 중 오류 발생:', error);
+      showNotification('휴무 제한 설정 중 오류가 발생했습니다.', 'error');
     }
   };
 
@@ -355,10 +355,10 @@ export default function AdminPage() {
         selectedDate ? fetchDateDetails(selectedDate) : Promise.resolve()
       ]);
       
-      showNotification('휴가 신청이 승인되었습니다.', 'success');
+      showNotification('휴무 신청이 승인되었습니다.', 'success');
     } catch (error) {
-      console.error('휴가 승인 중 오류 발생:', error);
-      showNotification('휴가 승인 중 오류가 발생했습니다.', 'error');
+      console.error('휴무 승인 중 오류 발생:', error);
+      showNotification('휴무 승인 중 오류가 발생했습니다.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -388,10 +388,10 @@ export default function AdminPage() {
         selectedDate ? fetchDateDetails(selectedDate) : Promise.resolve()
       ]);
       
-      showNotification('휴가 신청이 거부되었습니다.', 'success');
+      showNotification('휴무 신청이 거부되었습니다.', 'success');
     } catch (error) {
-      console.error('휴가 거부 중 오류 발생:', error);
-      showNotification('휴가 거부 중 오류가 발생했습니다.', 'error');
+      console.error('휴무 거부 중 오류 발생:', error);
+      showNotification('휴무 거부 중 오류가 발생했습니다.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -399,7 +399,7 @@ export default function AdminPage() {
   
   const handleDeleteVacation = async (vacationId: string) => {
     try {
-      if (confirm('정말로 이 휴가 신청을 삭제하시겠습니까?')) {
+      if (confirm('정말로 이 휴무 신청을 삭제하시겠습니까?')) {
         setIsLoading(true);
         
         // axios 대신 fetch 사용
@@ -422,11 +422,11 @@ export default function AdminPage() {
           selectedDate ? fetchDateDetails(selectedDate) : Promise.resolve()
         ]);
         
-        showNotification('휴가 신청이 삭제되었습니다.', 'success');
+        showNotification('휴무 신청이 삭제되었습니다.', 'success');
       }
     } catch (error) {
-      console.error('휴가 삭제 중 오류 발생:', error);
-      showNotification('휴가 삭제 중 오류가 발생했습니다.', 'error');
+      console.error('휴무 삭제 중 오류 발생:', error);
+      showNotification('휴무 삭제 중 오류가 발생했습니다.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -588,7 +588,7 @@ export default function AdminPage() {
             <div className="lg:col-span-2">
               <div className="bg-white rounded-xl shadow-md p-6 mb-6">
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-gray-800">휴가 캘린더</h2>
+                  <h2 className="text-2xl font-bold text-gray-800">휴무 캘린더</h2>
                   <div className="flex gap-2">
                     <button 
                       onClick={handleShowLimitPanel}
@@ -597,7 +597,7 @@ export default function AdminPage() {
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                         <path d="M5 4a1 1 0 00-2 0v7.268a2 2 0 000 3.464V16a1 1 0 102 0v-1.268a2 2 0 000-3.464V4zM11 4a1 1 0 10-2 0v1.268a2 2 0 000 3.464V16a1 1 0 102 0V8.732a2 2 0 000-3.464V4zM16 3a1 1 0 011 1v7.268a2 2 0 010 3.464V16a1 1 0 11-2 0v-1.268a2 2 0 010-3.464V4a1 1 0 011-1z" />
                       </svg>
-                      휴가 제한 설정
+                      휴무 제한 설정
                     </button>
                   </div>
                 </div>
@@ -616,8 +616,8 @@ export default function AdminPage() {
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-2xl font-bold text-gray-800">
                     {selectedDate 
-                      ? `${format(selectedDate, 'yyyy년 MM월 dd일', { locale: ko })} 휴가` 
-                      : '휴가 신청 목록'}
+                      ? `${format(selectedDate, 'yyyy년 MM월 dd일', { locale: ko })} 휴무` 
+                      : '휴무 신청 목록'}
                   </h2>
                   <div className="inline-flex shadow-sm rounded-md">
                     <button
@@ -675,16 +675,16 @@ export default function AdminPage() {
                     <p>
                       {selectedDate 
                         ? `${format(selectedDate, 'yyyy년 MM월 dd일', { locale: ko })}에 ${
-                            statusFilter === 'all' ? '휴가 신청이 없습니다' : 
-                            statusFilter === 'pending' ? '대기 중인 휴가 신청이 없습니다' :
-                            statusFilter === 'approved' ? '승인된 휴가 신청이 없습니다' : 
-                            '거부된 휴가 신청이 없습니다'
+                            statusFilter === 'all' ? '휴무 신청이 없습니다' : 
+                            statusFilter === 'pending' ? '대기 중인 휴무 신청이 없습니다' :
+                            statusFilter === 'approved' ? '승인된 휴무 신청이 없습니다' : 
+                            '거부된 휴무 신청이 없습니다'
                           }`
                         : `${
-                            statusFilter === 'all' ? '휴가 신청이 없습니다' : 
-                            statusFilter === 'pending' ? '대기 중인 휴가 신청이 없습니다' :
-                            statusFilter === 'approved' ? '승인된 휴가 신청이 없습니다' : 
-                            '거부된 휴가 신청이 없습니다'
+                            statusFilter === 'all' ? '휴무 신청이 없습니다' : 
+                            statusFilter === 'pending' ? '대기 중인 휴무 신청이 없습니다' :
+                            statusFilter === 'approved' ? '승인된 휴무 신청이 없습니다' : 
+                            '거부된 휴무 신청이 없습니다'
                           }`
                       }
                     </p>
@@ -698,6 +698,7 @@ export default function AdminPage() {
                             <h3 className="font-semibold text-lg">{request.userName}</h3>
                             <p className="text-gray-600 text-sm">{format(new Date(request.date), 'yyyy년 MM월 dd일 (EEE)', { locale: ko })}</p>
                             <p className="mt-2 text-sm bg-gray-50 p-2 rounded">{request.reason}</p>
+                            <p className="text-xs text-gray-500 mt-1">{request.type === 'regular' ? '일반 휴무' : request.type === 'mandatory' ? '필수 휴무' : request.type}</p>
                             <p className="text-xs text-gray-500 mt-2">신청일: {format(new Date(request.createdAt), 'yyyy-MM-dd HH:mm')}</p>
                           </div>
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -762,7 +763,7 @@ export default function AdminPage() {
             )}
           </AnimatePresence>
 
-          {/* 휴가 제한 설정 모달 */}
+          {/* 휴무 제한 설정 모달 */}
           <AnimatePresence>
             {showLimitPanel && (
               <motion.div

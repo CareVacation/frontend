@@ -90,7 +90,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
             const people = Array.isArray(dateData.people) ? dateData.people : [];
             const maxPeople = dateData.maxPeople !== undefined ? dateData.maxPeople : 3;
             
-            // 총 휴가자 수 (API에서 제공하거나 계산)
+            // 총 휴무자 수 (API에서 제공하거나 계산)
             const totalVacationers = dateData.totalVacationers !== undefined 
               ? dateData.totalVacationers 
               : vacations.filter((v: VacationRequest) => v.status !== 'rejected').length;
@@ -104,7 +104,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
               maxPeople: maxPeople
             };
             
-            console.log(`날짜 ${dateKey} 처리 완료: 휴가자 ${totalVacationers}명, 최대 ${maxPeople}명`);
+            console.log(`날짜 ${dateKey} 처리 완료: 휴무자 ${totalVacationers}명, 최대 ${maxPeople}명`);
           }
         });
       } else {
@@ -115,7 +115,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
           if (item) {
             console.log(`날짜 ${dateKey} 데이터 처리:`, item);
             
-            // 거부된 휴가는 총 인원 수에서 제외 (API에서 이미 처리했지만 안전을 위해 재확인)
+            // 거부된 휴무는 총 인원 수에서 제외 (API에서 이미 처리했지만 안전을 위해 재확인)
             const validVacations = Array.isArray(item.vacations) 
               ? item.vacations.filter((v: VacationRequest) => v.status !== 'rejected') 
               : [];
@@ -303,7 +303,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
       };
     }
     
-    // 주말 여부에 관계없이 휴가자 수에 따라 배경색 적용
+    // 주말 여부에 관계없이 휴무자 수에 따라 배경색 적용
     if (vacationersCount === 0) {
       return {
         bg: 'bg-green-100 hover:bg-green-200',
@@ -365,35 +365,35 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
       return [];
     }
     
-    // 휴가 데이터 로깅 (디버깅용)
+    // 휴무 데이터 로깅 (디버깅용)
     if (dayData?.vacations?.length > 0) {
-      console.log(`${dateKey}의 휴가 신청자 (${dayData.vacations.length}명):`, 
+      console.log(`${dateKey}의 휴무 신청자 (${dayData.vacations.length}명):`, 
         dayData.vacations.map(v => `${v.userName}(${v.status})`).join(', '));
     }
     
-    // 1. vacations 배열이 있고 비어있지 않으면 사용
+    // 1. vacations 배열이 있고 비어있지 않으면 사용 (휴무)
     if (Array.isArray(dayData.vacations) && dayData.vacations.length > 0) {
       return dayData.vacations;
     }
     
-    // 2. 대체: people 배열이 있고 비어있지 않으면 사용 (이전 API 구조와의 호환성)
+    // 2. 대체: people 배열이 있고 비어있지 않으면 사용 (이전 API 구조와의 호환성, 휴무)
     if (Array.isArray(dayData.people) && dayData.people.length > 0) {
-      console.log(`${dateKey}의 휴가 신청자(people 배열, ${dayData.people.length}명):`, 
+      console.log(`${dateKey}의 휴무 신청자(people 배열, ${dayData.people.length}명):`, 
         dayData.people.map(v => `${v.userName}(${v.status})`).join(', '));
       return dayData.people;
     }
     
-    // 3. 둘 다 없으면 빈 배열 반환
+    // 3. 둘 다 없으면 빈 배열 반환 (휴무 없음)
     return [];
   };
 
-  // 데이터 디버깅을 위한 함수
+  // 데이터 디버깅을 위한 함수 (휴무)
   const logAllVacations = () => {
     console.log("전체 캘린더 데이터:", calendarData);
     Object.keys(calendarData).forEach(dateKey => {
       const data = calendarData[dateKey];
       if (data.vacations && data.vacations.length > 0) {
-        console.log(`${dateKey}의 휴가 신청자 ${data.vacations.length}명:`, 
+        console.log(`${dateKey}의 휴무 신청자 ${data.vacations.length}명:`, 
           data.vacations.map(v => v.userName).join(', '));
       }
     });
@@ -451,7 +451,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
                 {format(currentDate, 'yyyy년 MM월', { locale: ko })}
               </h2>
               <p className="text-[10px] sm:text-sm text-gray-500">
-                휴가 일정 캘린더
+                휴무 일정 캘린더
               </p>
             </div>
           </div>
@@ -571,7 +571,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
                   )}
                 </div>
                 
-                {/* 휴가자 목록 바로 표시 */}
+                {/* 휴무자 목록 바로 표시 */}
                 {isCurrentMonth && vacations && vacations.length > 0 && (
                   <div className="mt-0.5 sm:mt-1.5 max-h-8 sm:max-h-12 overflow-hidden">
                     {vacations
@@ -597,7 +597,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
                               : 'text-gray-700'
                           }`}>
                             {vacation.userName || `이름 없음`}
-                            {/* 필수 휴가면 이름 옆에 별 */}
+                            {/* 필수 휴무면 이름 옆에 별 */}
                             {vacation.type === 'mandatory' && vacation.status !== 'rejected' && (
                               <MdStar className="inline ml-0.5 text-yellow-400" size={12} />
                             )}
