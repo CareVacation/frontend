@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { DayInfo, VacationRequest, VacationLimit, VacationData, CalendarProps } from '@/types/vacation';
 import AdminPanel from './AdminPanel';
 import { FiChevronLeft, FiChevronRight, FiX, FiCalendar, FiRefreshCw, FiAlertCircle, FiCheck } from 'react-icons/fi';
+import { MdStar } from 'react-icons/md';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -596,6 +597,10 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
                               : 'text-gray-700'
                           }`}>
                             {vacation.userName || `이름 없음`}
+                            {/* 필수 휴가면 이름 옆에 별 */}
+                            {vacation.type === 'mandatory' && vacation.status !== 'rejected' && (
+                              <MdStar className="inline ml-0.5 text-yellow-400" size={12} />
+                            )}
                           </span>
                         </div>
                       ))}
