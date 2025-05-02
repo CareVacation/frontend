@@ -166,12 +166,7 @@ const VacationDetails: React.FC<VacationDetailsProps> = ({
               <div className="flex justify-end">
                 <button
                   onClick={handleApplyClick}
-                  disabled={isFull}
-                  className={`flex items-center px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base rounded-lg shadow-sm transition-colors ${
-                    isFull 
-                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}
+                  className="flex items-center px-3 sm:px-4 py-1.5 sm:py-2 text-sm sm:text-base rounded-lg shadow-sm transition-colors bg-blue-600 text-white hover:bg-blue-700"
                 >
                   <FiSend className="mr-1.5 sm:mr-2 w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   휴무 신청하기
