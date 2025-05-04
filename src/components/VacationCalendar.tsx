@@ -302,45 +302,21 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
         today: true
       };
     }
-    
-    // 주말 여부에 관계없이 휴무자 수에 따라 배경색 적용
-    if (vacationersCount === 0) {
+
+    // 두 단계만: 여유/마감
+    if (vacationersCount < maxPeople) {
       return {
         bg: 'bg-green-100 hover:bg-green-200',
         text: isWeekend ? (date.getDay() === 0 ? 'text-red-600' : 'text-indigo-600') : 'text-green-800',
         border: 'border-transparent',
-        status: '가능'
-      };
-    } else if (vacationersCount < maxPeople) {
-      const ratio = vacationersCount / maxPeople;
-      if (ratio < 0.5) {
-        return {
-          bg: 'bg-green-50 hover:bg-green-100',
-          text: isWeekend ? (date.getDay() === 0 ? 'text-red-600' : 'text-indigo-600') : 'text-green-700',
-          border: 'border-transparent',
-          status: '여유'
-        };
-      } else {
-        return {
-          bg: 'bg-yellow-50 hover:bg-yellow-100',
-          text: isWeekend ? (date.getDay() === 0 ? 'text-red-600' : 'text-indigo-600') : 'text-yellow-700',
-          border: 'border-transparent',
-          status: '제한'
-        };
-      }
-    } else if (vacationersCount === maxPeople) {
-      return {
-        bg: 'bg-orange-50 hover:bg-orange-100',
-        text: isWeekend ? (date.getDay() === 0 ? 'text-red-600' : 'text-indigo-600') : 'text-orange-700',
-        border: 'border-transparent',
-        status: '마감'
+        status: '여유'
       };
     } else {
       return {
-        bg: 'bg-red-50 hover:bg-red-100',
+        bg: 'bg-red-100 hover:bg-red-200',
         text: isWeekend ? (date.getDay() === 0 ? 'text-red-600' : 'text-indigo-600') : 'text-red-700',
         border: 'border-transparent',
-        status: '초과'
+        status: '마감'
       };
     }
   };
@@ -546,9 +522,9 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
                 <div className={`flex justify-between items-start`}>
                   <div className={`text-[10px] sm:text-sm font-semibold ${
                     isSunday ? 'text-red-500' : 
-                    isSaturday ? 'text-indigo-500' : 
-                    dayColor.text}`}
-                  >
+                    isSaturday ? 'text-blue-500' : 
+                    'text-black'}
+                  `}>
                     {format(day, 'd')}
                     {isCurrentDay && (
                       <span className="ml-0.5 sm:ml-1 inline-flex h-1 w-1 sm:h-2 sm:w-2 rounded-full bg-blue-500"></span>
@@ -561,9 +537,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
                       ${
                         vacationersCount >= maxPeople
                           ? 'bg-red-100 text-red-600' 
-                          : vacationersCount >= maxPeople * 0.7
-                            ? 'bg-orange-100 text-orange-600'
-                            : 'bg-green-100 text-green-600'
+                          : 'bg-green-100 text-green-600'
                       }
                     `}>
                       {vacationersCount}/{maxPeople}
@@ -617,10 +591,6 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
                       <div className="text-[6px] sm:text-xs bg-red-500 text-white rounded-full w-2 h-2 sm:w-4 sm:h-4 flex items-center justify-center">
                         <FiAlertCircle size={6} className="sm:w-[10px] sm:h-[10px]" />
                       </div>
-                    ) : vacationersCount >= maxPeople * 0.7 ? (
-                      <div className="text-[6px] sm:text-xs bg-orange-500 text-white rounded-full w-2 h-2 sm:w-4 sm:h-4 flex items-center justify-center">
-                        <FiAlertCircle size={6} className="sm:w-[10px] sm:h-[10px]" />
-                      </div>
                     ) : (
                       <div className="text-[6px] sm:text-xs bg-green-500 text-white rounded-full w-2 h-2 sm:w-4 sm:h-4 flex items-center justify-center">
                         <FiCheck size={6} className="sm:w-[10px] sm:h-[10px]" />
@@ -648,12 +618,8 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
             <span className="text-[9px] sm:text-xs text-gray-600">여유</span>
           </div>
           <div className="flex items-center">
-            <div className="w-2 h-2 sm:w-3 sm:h-3 bg-orange-500 rounded-full mr-1 sm:mr-1.5"></div>
-            <span className="text-[9px] sm:text-xs text-gray-600">제한적</span>
-          </div>
-          <div className="flex items-center">
             <div className="w-2 h-2 sm:w-3 sm:h-3 bg-red-500 rounded-full mr-1 sm:mr-1.5"></div>
-            <span className="text-[9px] sm:text-xs text-gray-600">마감/초과</span>
+            <span className="text-[9px] sm:text-xs text-gray-600">마감</span>
           </div>
           <div className="flex items-center ml-2 sm:ml-4">
             <span className="text-[8px] sm:text-xs px-0.5 sm:px-1 py-0 sm:py-0.5 bg-green-100 text-green-600 rounded-full mr-1 sm:mr-1.5">승인</span>
