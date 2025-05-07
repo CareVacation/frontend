@@ -547,7 +547,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
                 
                 {/* 휴무자 목록 바로 표시 */}
                 {isCurrentMonth && vacations && vacations.length > 0 && (
-                  <div className="mt-0.5 sm:mt-1.5 max-h-8 sm:max-h-12 overflow-hidden">
+                  <div className="mt-0.5 sm:mt-1.5 max-h-8 sm:max-h-12 md:max-h-16 overflow-hidden">
                     {vacations
                       .filter(v => v.status !== 'rejected')
                       .slice(0, 3) // 최대 3명만 표시
