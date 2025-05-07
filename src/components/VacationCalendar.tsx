@@ -547,7 +547,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
                 
                 {/* 휴무자 목록 바로 표시 */}
                 {isCurrentMonth && vacations && vacations.length > 0 && (
-                  <div className="mt-0.5 sm:mt-1.5 max-h-8 sm:max-h-12 md:max-h-16 overflow-hidden">
+                  <div className="mt-0.5 sm:mt-1.5 max-h-16 sm:max-h-12 md:max-h-16 overflow-hidden">
                     {vacations
                       .filter(v => v.status !== 'rejected')
                       .slice(0, 3) // 최대 3명만 표시
@@ -565,17 +565,18 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
                               ? '거절'
                               : '대기'}
                           </span>
-                          <span className={`truncate max-w-[65%] ${
+                          <span className={`max-w-full sm:truncate sm:max-w-[60%] break-all ${
                             vacation.status === 'rejected'
                               ? 'text-red-600 line-through'
-                              : 'text-gray-700'
+                              : vacation.type === 'mandatory'
+                                ? 'text-yellow-400 sm:text-gray-700'
+                                : 'text-gray-700'
                           }`}>
                             {vacation.userName || `이름 없음`}
-                            {/* 필수 휴무면 이름 옆에 별 */}
-                            {vacation.type === 'mandatory' && vacation.status !== 'rejected' && (
-                              <MdStar className="inline ml-0.5 text-yellow-400" size={12} />
-                            )}
                           </span>
+                          {vacation.type === 'mandatory' && vacation.status !== 'rejected' && (
+                            <MdStar className="hidden sm:inline ml-0.5 text-yellow-400 flex-shrink-0" size={10} />
+                          )}
                         </div>
                       ))}
                     {vacations.filter(v => v.status !== 'rejected').length > 3 && (
