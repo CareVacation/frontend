@@ -5,7 +5,7 @@ import { ko } from 'date-fns/locale';
 import { VacationDetailsProps, VacationRequest } from '@/types/vacation';
 import VacationForm from './VacationForm';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiX, FiCalendar, FiUsers, FiClock, FiCheck, FiAlertCircle, FiSend } from 'react-icons/fi';
+import { FiX, FiCalendar, FiUsers, FiClock, FiCheck, FiAlertCircle, FiSend, FiUser, FiBriefcase, FiUserPlus } from 'react-icons/fi';
 
 const VacationDetails: React.FC<VacationDetailsProps> = ({
   date,
@@ -140,10 +140,41 @@ const VacationDetails: React.FC<VacationDetailsProps> = ({
                             {vacation.status === 'approved' ? '승인됨' : vacation.status === 'pending' ? '대기중' : '거부됨'}
                           </span>
                         </div>
-                        <div className="flex items-center text-xs sm:text-sm text-gray-500">
-                          <FiClock className="mr-1 w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                          <span>{vacation.type === 'regular' ? '일반 휴무' : vacation.type === 'mandatory' ? '필수 휴무' : vacation.type}</span>
+                        
+                        <div className="flex flex-wrap gap-2 mt-1.5">
+                          {/* 휴무 유형 뱃지 */}
+                          <div className="inline-flex items-center text-xs sm:text-sm px-2 py-0.5 rounded-md border bg-gray-50">
+                            <FiClock className="mr-1 w-3 h-3 sm:w-3.5 sm:h-3.5 text-gray-500" />
+                            <span className="text-gray-700">{vacation.type === 'regular' ? '일반 휴무' : vacation.type === 'mandatory' ? '필수 휴무' : vacation.type}</span>
+                          </div>
+                          
+                          {/* 직원 유형 뱃지 */}
+                          <div className={`inline-flex items-center text-xs sm:text-sm px-2 py-0.5 rounded-md border ${
+                            vacation.role === 'caregiver' 
+                              ? 'bg-blue-50 text-blue-700 border-blue-100' 
+                              : vacation.role === 'office' 
+                                ? 'bg-green-50 text-green-700 border-green-100' 
+                                : 'bg-indigo-50 text-indigo-700 border-indigo-100'
+                          }`}>
+                            {vacation.role === 'caregiver' && (
+                              <FiUser className="mr-1 w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                            )}
+                            {vacation.role === 'office' && (
+                              <FiBriefcase className="mr-1 w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                            )}
+                            {(!vacation.role || vacation.role === 'all') && (
+                              <FiUsers className="mr-1 w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                            )}
+                            <span>
+                              {vacation.role === 'caregiver' 
+                                ? '요양보호사' 
+                                : vacation.role === 'office' 
+                                  ? '사무실' 
+                                  : '전체'}
+                            </span>
+                          </div>
                         </div>
+
                         {vacation.reason && (
                           <div className="mt-1.5 sm:mt-2 text-xs sm:text-sm text-gray-600 bg-white p-1.5 sm:p-2 rounded border border-gray-100">
                             {vacation.reason}

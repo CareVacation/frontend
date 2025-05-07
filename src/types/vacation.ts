@@ -6,6 +6,7 @@ export interface VacationRequest {
   reason?: string;
   status: 'pending' | 'approved' | 'rejected' | 'canceled';
   type: 'regular' | 'mandatory' | 'sick' | 'other';
+  role: 'caregiver' | 'office' | 'all';  // 요양보호사, 사무실, 전체
   createdAt: string;
   updatedAt: string;
 }

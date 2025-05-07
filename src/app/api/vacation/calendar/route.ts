@@ -17,95 +17,110 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
-  // URL에서 쿼리 파라미터 추출
-  const searchParams = request.nextUrl.searchParams;
-  const startDateParam = searchParams.get('startDate');
-  const endDateParam = searchParams.get('endDate');
-
-  console.log(`Calendar API called with startDate: ${startDateParam}, endDate: ${endDateParam}`);
-
-  // 파라미터 검증
-  if (!startDateParam || !endDateParam) {
-    return NextResponse.json(
-      { error: 'startDate and endDate parameters are required' },
-      { status: 400, headers }
-    );
-  }
-
-  // 날짜 형식 검증
-  if (!isValidDateFormat(startDateParam) || !isValidDateFormat(endDateParam)) {
-    return NextResponse.json(
-      { error: 'Invalid date format. Use YYYY-MM-DD' },
-      { status: 400, headers }
-    );
-  }
-
   try {
-    // 해당 기간의 휴가 데이터 가져오기
-    console.log(`Fetching vacations for date range: ${startDateParam} to ${endDateParam}`);
-    const vacations = await getVacationRequestsForDateRange(startDateParam, endDateParam);
-    console.log(`Found ${vacations.length} vacation requests in the date range`);
-
-    // 날짜별로 그룹화
-    const groupedData: VacationData = {};
-
-    // 모든 휴가 요청을 날짜별로 그룹화
-    for (const vacation of vacations) {
-      const date = vacation.date;
-      
-      if (!groupedData[date]) {
-        groupedData[date] = {
-          date,
-          totalVacationers: 0,
-          vacations: [],
-          people: []
-        };
-      }
-      
-      groupedData[date].vacations.push(vacation);
-      groupedData[date].people!.push(vacation);
-      groupedData[date].totalVacationers += 1;
+    // URL에서 검색 파라미터 추출
+    const url = new URL(request.url);
+    const startDate = url.searchParams.get('startDate');
+    const endDate = url.searchParams.get('endDate');
+    const roleFilter = url.searchParams.get('roleFilter') || 'all';
+    
+    // 파라미터 유효성 검사
+    if (!startDate || !endDate) {
+      return NextResponse.json({
+        error: 'startDate와 endDate 파라미터가 필요합니다.'
+      }, { status: 400 });
     }
 
-    // 각 날짜에 대한 제한 정보 한 번에 가져오기
-    const limits = await getVacationLimitsForMonthRange(startDateParam, endDateParam);
-    const limitsMap: Record<string, number> = {};
-    limits.forEach(limit => {
-      limitsMap[limit.date] = limit.maxPeople;
-    });
-
-    // groupedData에 maxPeople 할당
-    Object.keys(groupedData).forEach(date => {
-      groupedData[date].maxPeople = limitsMap[date] ?? 3;
-    });
-
-    // startDate ~ endDate 사이의 모든 날짜에 대해 데이터 채우기
-    const start = parseISO(startDateParam);
-    const end = parseISO(endDateParam);
-    let current = new Date(start);
-
-    while (current <= end) {
-      const dateStr = format(current, 'yyyy-MM-dd');
-      if (!groupedData[dateStr]) {
-        groupedData[dateStr] = {
-          date: dateStr,
-          totalVacationers: 0,
-          vacations: [],
-          people: [],
-          maxPeople: limitsMap[dateStr] ?? 3
-        };
-      }
-      current.setDate(current.getDate() + 1);
+    // 날짜 형식 유효성 검사
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+      return NextResponse.json({
+        error: '날짜 형식은 YYYY-MM-DD여야 합니다.'
+      }, { status: 400 });
     }
 
-    console.log(`Returning data for ${Object.keys(groupedData).length} days`);
-    return NextResponse.json({ dates: groupedData }, { headers });
+    // 휴가 신청 데이터 가져오기
+    try {
+      console.log(`[API] 휴가 데이터 조회 시작: ${startDate} ~ ${endDate}`);
+      
+      // 휴가 신청 및 제한 데이터 가져오기
+      const vacations = await getVacationRequestsForDateRange(startDate, endDate);
+      const limits = await getVacationLimitsForMonthRange(startDate, endDate);
+      
+      console.log(`[API] 데이터 조회 완료: 휴가=${vacations.length}건, 제한=${limits.length}건`);
+      
+      // 직원 유형별 필터링
+      let filteredVacations = vacations;
+      if (roleFilter !== 'all') {
+        filteredVacations = vacations.filter(vacation => 
+          vacation.role === roleFilter || vacation.role === 'all'
+        );
+        console.log(`[API] 직원 유형 필터링 적용 (${roleFilter}): ${filteredVacations.length}건`);
+      }
+
+      // 날짜별로 휴가 데이터 정리
+      const dateMap = new Map();
+      
+      // 먼저 전체 날짜에 대한 기본 구조 생성
+      const startDateObj = parseISO(startDate);
+      const endDateObj = parseISO(endDate);
+      
+      // 각 휴가별 카운팅 (상태가 'rejected'가 아닌 경우만)
+      filteredVacations.forEach(vacation => {
+        const dateKey = vacation.date;
+        
+        if (!dateMap.has(dateKey)) {
+          // 해당 날짜에 대한 기본 구조 생성
+          dateMap.set(dateKey, {
+            date: dateKey,
+            vacations: [],
+            totalVacationers: 0,
+            maxPeople: 3 // 기본값
+          });
+        }
+        
+        const dateData = dateMap.get(dateKey);
+        dateData.vacations.push(vacation);
+        
+        // '거부' 상태가 아닌 휴가만 카운트
+        if (vacation.status !== 'rejected') {
+          dateData.totalVacationers++;
+        }
+      });
+      
+      // 휴가 제한 정보 적용
+      limits.forEach(limit => {
+        const dateKey = limit.date;
+        
+        if (!dateMap.has(dateKey)) {
+          // 해당 날짜에 대한 기본 구조 생성
+          dateMap.set(dateKey, {
+            date: dateKey,
+            vacations: [],
+            totalVacationers: 0,
+            maxPeople: limit.maxPeople
+          });
+        } else {
+          // 이미 있는 날짜 데이터에 maxPeople 정보만 추가/갱신
+          dateMap.get(dateKey).maxPeople = limit.maxPeople;
+        }
+      });
+      
+      // 데이터를 객체로 변환 (Map -> Object)
+      const resultObject = {
+        dates: Object.fromEntries(dateMap)
+      };
+      
+      return NextResponse.json(resultObject);
+      
+    } catch (error) {
+      console.error('[API] 휴가 데이터 조회 중 오류:', error);
+      throw error;
+    }
   } catch (error) {
-    console.error('Error in calendar API:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch vacation data' },
-      { status: 500, headers }
-    );
+    console.error('[API] 요청 처리 중 오류:', error);
+    return NextResponse.json({
+      error: '서버 내부 오류가 발생했습니다.'
+    }, { status: 500 });
   }
 }
 

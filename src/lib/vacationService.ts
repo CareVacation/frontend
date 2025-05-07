@@ -393,10 +393,8 @@ export async function getVacationLimits(startDate: Date, endDate: Date): Promise
   }
 }
 
-// 날짜 범위에 대한 휴가 요청 가져오기
+// 날짜 범위에 대한 휴가 신청 데이터 가져오기
 export async function getVacationRequestsForDateRange(startDateStr: string, endDateStr: string): Promise<VacationRequest[]> {
-  console.log(`[VacationService] 날짜 범위 ${startDateStr} ~ ${endDateStr}의 휴가 요청 조회 시작`);
-  
   try {
     const vacationsRef = collection(db, VACATIONS_COLLECTION);
     const q = query(
@@ -410,18 +408,21 @@ export async function getVacationRequestsForDateRange(startDateStr: string, endD
     
     querySnapshot.forEach((doc) => {
       const data = doc.data();
+      
+      // 기존 데이터에 필수 필드가 없는 경우 기본값 설정
       vacations.push({
         id: doc.id,
         ...data,
         reason: data.reason || '(사유 미입력)',
-        type: data.type || 'regular'
+        type: data.type || 'regular',
+        role: data.role || 'all', // 역할 필드가 없는 기존 데이터에는 'all' 기본값 지정
+        updatedAt: data.updatedAt || data.createdAt || new Date().toISOString()
       } as VacationRequest);
     });
     
-    console.log(`[VacationService] 날짜 범위의 휴가 요청 ${vacations.length}개 조회 완료`);
     return vacations;
   } catch (error) {
-    console.error('[VacationService] 날짜 범위 휴가 요청 조회 중 오류:', error);
+    console.error('날짜 범위별 휴가 데이터 조회 중 오류:', error);
     throw error;
   }
 }

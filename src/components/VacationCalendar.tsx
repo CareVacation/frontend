@@ -5,7 +5,7 @@ import { ko } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DayInfo, VacationRequest, VacationLimit, VacationData, CalendarProps } from '@/types/vacation';
 import AdminPanel from './AdminPanel';
-import { FiChevronLeft, FiChevronRight, FiX, FiCalendar, FiRefreshCw, FiAlertCircle, FiCheck } from 'react-icons/fi';
+import { FiChevronLeft, FiChevronRight, FiX, FiCalendar, FiRefreshCw, FiAlertCircle, FiCheck, FiUser, FiBriefcase, FiUsers } from 'react-icons/fi';
 import { MdStar } from 'react-icons/md';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -15,6 +15,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'caregiver' | 'office'>('all');
 
   const today = new Date();
 
@@ -39,10 +40,11 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
       // 현재 호스트 기반 절대 URL 사용
       const apiUrl = `/api/vacation/calendar`;
       
-      // 검색 파라미터 추가
+      // 검색 파라미터 추가 - 직원 유형 필터 추가
       const params = new URLSearchParams({
         startDate: format(monthStart, 'yyyy-MM-dd'),
         endDate: format(monthEnd, 'yyyy-MM-dd'),
+        roleFilter: activeFilter,
         // 캐시 방지를 위한 타임스탬프 추가 (더 세분화된 값)
         _t: Date.now().toString(),
         _r: Math.random().toString().substring(2, 8) // 추가 랜덤값
@@ -253,6 +255,12 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
     };
   }, []);
 
+  // 필터 변경 시 데이터 재로드
+  useEffect(() => {
+    console.log(`필터 변경됨: ${activeFilter} - 데이터 로드`);
+    fetchCalendarData();
+  }, [activeFilter]);
+
   const handleDateClick = (date: Date) => {
     if (!isSameMonth(date, currentDate)) return;
     
@@ -341,26 +349,25 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
       return [];
     }
     
-    // 휴무 데이터 로깅 (디버깅용)
-    if (dayData?.vacations?.length > 0) {
-      console.log(`${dateKey}의 휴무 신청자 (${dayData.vacations.length}명):`, 
-        dayData.vacations.map(v => `${v.userName}(${v.status})`).join(', '));
-    }
-    
     // 1. vacations 배열이 있고 비어있지 않으면 사용 (휴무)
-    if (Array.isArray(dayData.vacations) && dayData.vacations.length > 0) {
-      return dayData.vacations;
+    let vacations = Array.isArray(dayData.vacations) && dayData.vacations.length > 0
+      ? dayData.vacations
+      : Array.isArray(dayData.people) && dayData.people.length > 0
+      ? dayData.people
+      : [];
+    
+    // 추가 필터링 로직 적용
+    if (activeFilter !== 'all') {
+      vacations = vacations.filter(vacation => vacation.role === activeFilter);
     }
     
-    // 2. 대체: people 배열이 있고 비어있지 않으면 사용 (이전 API 구조와의 호환성, 휴무)
-    if (Array.isArray(dayData.people) && dayData.people.length > 0) {
-      console.log(`${dateKey}의 휴무 신청자(people 배열, ${dayData.people.length}명):`, 
-        dayData.people.map(v => `${v.userName}(${v.status})`).join(', '));
-      return dayData.people;
+    // 휴무 데이터 로깅 (디버깅용)
+    if (vacations.length > 0) {
+      console.log(`${dateKey}의 휴무 신청자 필터링 후 (${vacations.length}명):`, 
+        vacations.map(v => `${v.userName}(${v.role}, ${v.status})`).join(', '));
     }
     
-    // 3. 둘 다 없으면 빈 배열 반환 (휴무 없음)
-    return [];
+    return vacations;
   };
 
   // 데이터 디버깅을 위한 함수 (휴무)
@@ -464,8 +471,46 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
           </div>
         </div>
 
+        {/* 직원 유형 필터 탭 수정 - 색상 대비 강화 */}
+        <div className="flex justify-center mb-3 sm:mb-5">
+          <div className="inline-flex bg-gray-100 p-1 rounded-lg shadow-sm">
+            <button
+              onClick={() => setActiveFilter('all')}
+              className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all flex items-center gap-1
+                ${activeFilter === 'all' 
+                  ? 'bg-purple-600 text-white shadow-sm ring-2 ring-purple-300' 
+                  : 'text-black hover:bg-gray-200'}`}
+            >
+              <FiUsers className="w-3 h-3 sm:w-4 sm:h-4" />
+              전체
+            </button>
+            <button
+              onClick={() => setActiveFilter('caregiver')}
+              className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all flex items-center gap-1
+                ${activeFilter === 'caregiver' 
+                  ? 'bg-cyan-600 text-white shadow-sm ring-2 ring-cyan-300' 
+                  : 'text-black hover:bg-gray-200'}`}
+            >
+              <FiUser className="w-3 h-3 sm:w-4 sm:h-4" />
+              요양보호사
+            </button>
+            <button
+              onClick={() => setActiveFilter('office')}
+              className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all flex items-center gap-1
+                ${activeFilter === 'office' 
+                  ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-300' 
+                  : 'text-black hover:bg-gray-200'}`}
+            >
+              <FiBriefcase className="w-3 h-3 sm:w-4 sm:h-4" />
+              사무실
+            </button>
+          </div>
+        </div>
+        
+        {/* 필터링 레전드(범례) 섹션 삭제 */}
+
         {/* 요일 헤더 */}
-        <div className="grid grid-cols-7 mb-1 sm:mb-2 text-center">
+        <div className="grid grid-cols-7 border-b border-gray-200">
           {WEEKDAYS.map((day, index) => (
             <div 
               key={day} 
@@ -553,6 +598,8 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
                       .slice(0, 3) // 최대 3명만 표시
                       .map((vacation, idx) => (
                         <div key={idx} className="flex items-center text-[6px] sm:text-xs mb-0.5">
+                          {/* 직원 유형 색상 표시 동그라미 제거 */}
+                          
                           <span className={`flex-shrink-0 whitespace-nowrap text-[6px] sm:text-xs mr-0.5 sm:mr-1 px-0.5 sm:px-1 py-0 sm:py-0.5 rounded-full
                             ${vacation.status === 'approved' 
                               ? 'bg-green-100 text-green-600' 
@@ -568,14 +615,12 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
                           <span className={`max-w-full sm:truncate sm:max-w-[60%] break-all ${
                             vacation.status === 'rejected'
                               ? 'text-red-600 line-through'
-                              : vacation.type === 'mandatory'
-                                ? 'text-yellow-400 sm:text-gray-700'
-                                : 'text-gray-700'
+                              : 'text-black'
                           }`}>
                             {vacation.userName || `이름 없음`}
                           </span>
                           {vacation.type === 'mandatory' && vacation.status !== 'rejected' && (
-                            <MdStar className="hidden sm:inline ml-0.5 text-yellow-400 flex-shrink-0" size={10} />
+                            <MdStar className="hidden sm:inline ml-0.5 text-amber-500 flex-shrink-0" size={10} />
                           )}
                         </div>
                       ))}

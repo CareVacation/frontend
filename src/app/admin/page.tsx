@@ -29,6 +29,9 @@ export default function AdminPage() {
   // 휴무 필터링 상태
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [allRequests, setAllRequests] = useState<VacationRequest[]>([]);
+  
+  // 직원 유형 필터링 상태 추가
+  const [roleFilter, setRoleFilter] = useState<'all' | 'caregiver' | 'office'>('all');
 
   // 초기 로딩 시 인증 확인
   useEffect(() => {
@@ -50,11 +53,20 @@ export default function AdminPage() {
 
   // 필터링된 요청 목록 계산
   const filteredRequests = useMemo(() => {
-    if (statusFilter === 'all') {
-      return allRequests;
+    let filtered = allRequests;
+    
+    // 상태별 필터링
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(request => request.status === statusFilter);
     }
-    return allRequests.filter(request => request.status === statusFilter);
-  }, [allRequests, statusFilter]);
+    
+    // 직원 유형별 필터링
+    if (roleFilter !== 'all') {
+      filtered = filtered.filter(request => request.role === roleFilter);
+    }
+    
+    return filtered;
+  }, [allRequests, statusFilter, roleFilter]);
 
   const fetchInitialData = () => {
     fetchMonthData();
@@ -542,11 +554,22 @@ export default function AdminPage() {
     }
   };
 
+  // 직원 유형 필터 토글
+  const toggleRoleFilter = (role: 'all' | 'caregiver' | 'office') => {
+    // 현재 선택된 필터와 동일하면 필터 초기화 (전체 데이터 표시)
+    if (roleFilter === role && role !== 'all') {
+      setRoleFilter('all');
+    } else {
+      setRoleFilter(role);
+    }
+  };
+
   // 필터 초기화 함수 개선
   const resetFilter = async () => {
     // 모든 요청을 다시 불러오기
     await fetchAllRequests();
     setStatusFilter('all');
+    setRoleFilter('all');
     setSelectedDate(null);
     setShowDetails(false);
   };
@@ -619,47 +642,126 @@ export default function AdminPage() {
                       ? `${format(selectedDate, 'yyyy년 MM월 dd일', { locale: ko })} 휴무` 
                       : '휴무 신청 목록'}
                   </h2>
-                  <div className="inline-flex shadow-sm rounded-md">
-                    <button
-                      onClick={() => toggleStatusFilter('all')}
-                      className={`px-4 py-2 text-sm font-medium rounded-l-md ${
-                        statusFilter === 'all' 
-                          ? 'bg-indigo-600 text-white' 
-                          : 'bg-white text-gray-700 hover:bg-gray-50'
-                      } border border-gray-300`}
+
+                  {/* 필터 리셋 버튼 */}
+                  {(statusFilter !== 'all' || roleFilter !== 'all' || selectedDate) && (
+                    <button 
+                      onClick={resetFilter}
+                      className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-800"
                     >
-                      전체
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                      </svg>
+                      필터 초기화
                     </button>
-                    <button
-                      onClick={() => toggleStatusFilter('pending')}
-                      className={`px-4 py-2 text-sm font-medium ${
-                        statusFilter === 'pending' 
-                          ? 'bg-yellow-500 text-white' 
-                          : 'bg-white text-gray-700 hover:bg-gray-50'
-                      } border-t border-b border-gray-300`}
-                    >
-                      대기중
-                    </button>
-                    <button
-                      onClick={() => toggleStatusFilter('approved')}
-                      className={`px-4 py-2 text-sm font-medium ${
-                        statusFilter === 'approved' 
-                          ? 'bg-green-600 text-white' 
-                          : 'bg-white text-gray-700 hover:bg-gray-50'
-                      } border-t border-b border-gray-300`}
-                    >
-                      승인됨
-                    </button>
-                    <button
-                      onClick={() => toggleStatusFilter('rejected')}
-                      className={`px-4 py-2 text-sm font-medium rounded-r-md ${
-                        statusFilter === 'rejected' 
-                          ? 'bg-red-600 text-white' 
-                          : 'bg-white text-gray-700 hover:bg-gray-50'
-                      } border border-gray-300`}
-                    >
-                      거부됨
-                    </button>
+                  )}
+                </div>
+                
+                {/* 필터링 컨트롤 영역 */}
+                <div className="mb-6 space-y-3">
+                  {/* 상태 필터 */}
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-gray-700 mb-2">휴무 상태</span>
+                    <div className="inline-flex shadow-sm rounded-md overflow-hidden">
+                      <button
+                        onClick={() => toggleStatusFilter('all')}
+                        className={`px-4 py-2 text-sm font-medium flex items-center justify-center gap-1.5 transition-all ${
+                          statusFilter === 'all' 
+                            ? 'bg-indigo-600 text-white ring-2 ring-indigo-600 ring-offset-1 z-10 relative' 
+                            : 'bg-white text-gray-700 hover:bg-gray-50'
+                        } border-y border-l border-gray-300`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                        </svg>
+                        전체
+                      </button>
+                      <button
+                        onClick={() => toggleStatusFilter('pending')}
+                        className={`px-4 py-2 text-sm font-medium flex items-center justify-center gap-1.5 transition-all ${
+                          statusFilter === 'pending' 
+                            ? 'bg-yellow-500 text-white ring-2 ring-yellow-500 ring-offset-1 z-10 relative' 
+                            : 'bg-white text-gray-700 hover:bg-gray-50'
+                        } border-y border-gray-300 -ml-px`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        대기중
+                      </button>
+                      <button
+                        onClick={() => toggleStatusFilter('approved')}
+                        className={`px-4 py-2 text-sm font-medium flex items-center justify-center gap-1.5 transition-all ${
+                          statusFilter === 'approved' 
+                            ? 'bg-green-600 text-white ring-2 ring-green-600 ring-offset-1 z-10 relative' 
+                            : 'bg-white text-gray-700 hover:bg-gray-50'
+                        } border-y border-gray-300 -ml-px`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        승인됨
+                      </button>
+                      <button
+                        onClick={() => toggleStatusFilter('rejected')}
+                        className={`px-4 py-2 text-sm font-medium flex items-center justify-center gap-1.5 transition-all ${
+                          statusFilter === 'rejected' 
+                            ? 'bg-red-600 text-white ring-2 ring-red-600 ring-offset-1 z-10 relative' 
+                            : 'bg-white text-gray-700 hover:bg-gray-50'
+                        } border-y border-r border-gray-300 -ml-px`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                        거부됨
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 직원 유형 필터 */}
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-gray-700 mb-2">직원 유형</span>
+                    <div className="inline-flex shadow-sm rounded-md overflow-hidden">
+                      <button
+                        onClick={() => toggleRoleFilter('all')}
+                        className={`px-4 py-2 text-sm font-medium flex items-center justify-center gap-1.5 transition-all ${
+                          roleFilter === 'all' 
+                            ? 'bg-indigo-600 text-white ring-2 ring-indigo-600 ring-offset-1 z-10 relative' 
+                            : 'bg-white text-gray-700 hover:bg-gray-50'
+                        } border-y border-l border-gray-300`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        전체
+                      </button>
+                      <button
+                        onClick={() => toggleRoleFilter('caregiver')}
+                        className={`px-4 py-2 text-sm font-medium flex items-center justify-center gap-1.5 transition-all ${
+                          roleFilter === 'caregiver' 
+                            ? 'bg-blue-600 text-white ring-2 ring-blue-600 ring-offset-1 z-10 relative' 
+                            : 'bg-white text-gray-700 hover:bg-gray-50'
+                        } border-y border-gray-300 -ml-px`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        요양보호사
+                      </button>
+                      <button
+                        onClick={() => toggleRoleFilter('office')}
+                        className={`px-4 py-2 text-sm font-medium flex items-center justify-center gap-1.5 transition-all ${
+                          roleFilter === 'office' 
+                            ? 'bg-green-600 text-white ring-2 ring-green-600 ring-offset-1 z-10 relative' 
+                            : 'bg-white text-gray-700 hover:bg-gray-50'
+                        } border-y border-r border-gray-300 -ml-px`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                        사무실
+                      </button>
+                    </div>
                   </div>
                 </div>
                 
@@ -695,18 +797,69 @@ export default function AdminPage() {
                       <div key={request.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                         <div className="flex justify-between items-start">
                           <div>
-                            <h3 className="font-semibold text-lg text-gray-900">{request.userName}</h3>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold text-lg text-gray-900">{request.userName}</h3>
+                              
+                              {/* 직원 유형 뱃지 */}
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                request.role === 'caregiver' 
+                                  ? 'bg-blue-100 text-blue-800 border border-blue-200' 
+                                  : request.role === 'office' 
+                                    ? 'bg-green-100 text-green-800 border border-green-200' 
+                                    : 'bg-indigo-100 text-indigo-800 border border-indigo-200'
+                              }`}>
+                                {request.role === 'caregiver' && (
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                  </svg>
+                                )}
+                                {request.role === 'office' && (
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                  </svg>
+                                )}
+                                {(!request.role || request.role === 'all') && (
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                  </svg>
+                                )}
+                                {request.role === 'caregiver' 
+                                  ? '요양보호사' 
+                                  : request.role === 'office' 
+                                    ? '사무실' 
+                                    : '전체'}
+                              </span>
+                            </div>
+                            
                             <p className="text-gray-600 text-sm">{format(new Date(request.date), 'yyyy년 MM월 dd일 (EEE)', { locale: ko })}</p>
-                            <p className="mt-2 text-sm bg-gray-50 p-2 rounded">{request.reason}</p>
-                            <p className="text-xs text-gray-500 mt-1">{request.type === 'regular' ? '일반 휴무' : request.type === 'mandatory' ? '필수 휴무' : request.type}</p>
+                            
+                            {/* 휴가 타입 뱃지 */}
+                            <div className="mt-1.5">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${
+                                request.type === 'regular' 
+                                  ? 'bg-purple-100 text-purple-800 border border-purple-200' 
+                                  : 'bg-amber-100 text-amber-800 border border-amber-200'
+                              }`}>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  {request.type === 'regular' ? (
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                  ) : (
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  )}
+                                </svg>
+                                {request.type === 'regular' ? '일반 휴무' : '필수 휴무'}
+                              </span>
+                            </div>
+                            
+                            <p className="mt-2 text-sm bg-gray-50 p-2 rounded border border-gray-100">{request.reason}</p>
                             <p className="text-xs text-gray-500 mt-2">신청일: {format(new Date(request.createdAt), 'yyyy-MM-dd HH:mm')}</p>
                           </div>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                             request.status === 'pending' 
-                              ? 'bg-yellow-100 text-yellow-800'
+                              ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
                               : request.status === 'approved'
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-red-100 text-red-800'
+                                ? 'bg-green-100 text-green-800 border border-green-200'
+                                : 'bg-red-100 text-red-800 border border-red-200'
                           }`}>
                             {request.status === 'pending' ? '대기중' : 
                              request.status === 'approved' ? '승인됨' : '거부됨'}
@@ -717,23 +870,29 @@ export default function AdminPage() {
                             <>
                               <button
                                 onClick={() => handleRejectVacation(request.id)}
-                                className="px-3 py-1.5 border border-red-300 text-red-600 rounded hover:bg-red-50 transition-colors text-sm"
+                                className="px-3 py-1.5 border border-red-300 text-red-600 rounded-md hover:bg-red-50 transition-colors text-sm flex items-center gap-1 shadow-sm"
                               >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
                                 거부
                               </button>
                               <button
                                 onClick={() => handleApproveVacation(request.id)}
-                                className="px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm"
+                                className="px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm flex items-center gap-1 shadow-sm"
                               >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
                                 승인
                               </button>
                             </>
                           )}
                           <button
                             onClick={() => handleDeleteVacation(request.id)}
-                            className="px-3 py-1.5 bg-gray-700 text-white rounded hover:bg-gray-800 transition-colors text-sm flex items-center"
+                            className="px-3 py-1.5 bg-gray-700 text-white rounded-md hover:bg-gray-800 transition-colors text-sm flex items-center gap-1 shadow-sm"
                           >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                               <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1-1h-2a1 1 0 000 2h2a1 1 0 001-1zm0 4a1 1 0 00-1-1h-2a1 1 0 000 2h2a1 1 0 001-1z" clipRule="evenodd" />
                             </svg>
                             삭제
