@@ -51,6 +51,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
       });
       
       console.log('캘린더 API 요청 URL:', `${apiUrl}?${params}`);
+      console.log('요청 날짜 범위:', format(monthStart, 'yyyy-MM-dd'), '~', format(monthEnd, 'yyyy-MM-dd'));
       
       // fetch API 사용 - 캐시 방지 헤더 강화
       const response = await fetch(`${apiUrl}?${params}`, {
@@ -72,7 +73,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
       const apiData = await response.json();
       console.log('API 응답 데이터 수신:', apiData);
       
-      // API 응답을 VacationData 형식으로 변환
+      // API 응답을 VacationData 형식으로 변환 - 완전히 새로운 객체로 초기화
       const formattedData: VacationData = {};
       
       // 응답이 { dates: { ... } } 형식으로 왔는지 확인
@@ -92,7 +93,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
             const people = Array.isArray(dateData.people) ? dateData.people : [];
             const maxPeople = dateData.maxPeople !== undefined ? dateData.maxPeople : 3;
             
-            // 총 휴무자 수 (API에서 제공하거나 계산)
+            // 총 휴무자 수 계산 시 거부된 휴가 제외
             const totalVacationers = dateData.totalVacationers !== undefined 
               ? dateData.totalVacationers 
               : vacations.filter((v: VacationRequest) => v.status !== 'rejected').length;
@@ -117,7 +118,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
           if (item) {
             console.log(`날짜 ${dateKey} 데이터 처리:`, item);
             
-            // 거부된 휴무는 총 인원 수에서 제외 (API에서 이미 처리했지만 안전을 위해 재확인)
+            // 거부된 휴무는 총 인원 수에서 제외
             const validVacations = Array.isArray(item.vacations) 
               ? item.vacations.filter((v: VacationRequest) => v.status !== 'rejected') 
               : [];
@@ -126,16 +127,12 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
               ? item.totalVacationers 
               : validVacations.length;
             
-            // 기존 항목이 있으면 병합, 없으면 새로 생성
-            const existingData = formattedData[dateKey];
+            // 완전히 새로운 객체 생성 - 기존 데이터 병합하지 않음
             formattedData[dateKey] = {
-              ...(existingData || {}), // 기존 데이터가 있으면 유지
               date: dateKey,
               totalVacationers: totalVacationers,
               vacations: Array.isArray(item.vacations) ? item.vacations : [],
-              // maxPeople 값이 있으면 그대로 사용, 없으면 기존 값 유지, 둘 다 없으면 기본값 3
-              maxPeople: item.maxPeople !== undefined ? item.maxPeople : 
-                       (existingData?.maxPeople || 3)
+              maxPeople: item.maxPeople !== undefined ? item.maxPeople : 3
             };
             
             // 디버깅용 로그
@@ -145,6 +142,9 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
       }
       
       console.log('변환된 캘린더 데이터:', formattedData);
+      console.log('데이터 엔트리 수:', Object.keys(formattedData).length);
+      
+      // 이전 데이터 없이 새로운 데이터로 완전히 교체
       setCalendarData(formattedData);
       
       // 선택된 날짜가 있다면 해당 날짜의 데이터를 다시 가져옴
@@ -195,22 +195,31 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
       
       // 데이터 업데이트 시 원본 데이터 보존
       if (data) {
-        // 데이터 병합 - 기존 데이터 구조 유지하면서 API 응답 반영
-        setCalendarData(prev => ({
-          ...prev,
-          [formattedDate]: {
-            ...(prev[formattedDate] || {}),
-            date: formattedDate,
-            vacations: data.vacations || [],
-            maxPeople: data.maxPeople !== undefined ? data.maxPeople : (prev[formattedDate]?.maxPeople || 3),
-            totalVacationers: data.totalVacationers !== undefined
-              ? data.totalVacationers
-              : (data.vacations || []).filter((v: VacationRequest) => v.status !== 'rejected').length
-          }
-        }));
+        // 기존 캘린더 데이터와 날짜키가 일치하는지 확인
+        console.log(`CalendarData 현재 키:`, Object.keys(calendarData));
+        
+        // 캘린더 데이터 복사본 생성
+        const newCalendarData = { ...calendarData };
+        
+        // 데이터 업데이트 - API에서 받은 정확한 날짜 키 사용
+        const dateKey = data.date || formattedDate;
+        console.log(`API 응답의 날짜 키: ${dateKey}, 요청한 날짜: ${formattedDate}`);
+        
+        // 정확한 날짜 키로 데이터 저장 (기존 데이터와 병합하지 않고 새로운 객체 생성)
+        newCalendarData[formattedDate] = {
+          date: formattedDate, // 요청한 정확한 날짜 사용
+          vacations: data.vacations || [],
+          maxPeople: data.maxPeople !== undefined ? data.maxPeople : 3,
+          totalVacationers: data.totalVacationers !== undefined 
+                          ? data.totalVacationers 
+                          : (data.vacations || []).filter((v: VacationRequest) => v.status !== 'rejected').length
+        };
+        
+        // 캘린더 데이터 업데이트
+        setCalendarData(newCalendarData);
         
         // 변경된 데이터 확인 로그
-        console.log(`${formattedDate} 날짜 데이터 업데이트 완료:`, calendarData[formattedDate]);
+        console.log(`${formattedDate} 날짜 데이터 업데이트 완료:`, newCalendarData[formattedDate]);
       }
     } catch (error) {
       console.error('선택된 날짜 데이터 로딩 오류:', error);
@@ -310,14 +319,14 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
         today: true
       };
     }
-
+    
     // 두 단계만: 여유/마감
     if (vacationersCount < maxPeople) {
       return {
         bg: 'bg-green-100 hover:bg-green-200',
         text: isWeekend ? (date.getDay() === 0 ? 'text-red-600' : 'text-indigo-600') : 'text-green-800',
-        border: 'border-transparent',
-        status: '여유'
+          border: 'border-transparent',
+          status: '여유'
       };
     } else {
       return {
@@ -356,6 +365,9 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
       ? dayData.people
       : [];
     
+    // 거부된 휴가는 제외 (상태 표시에서는 거부된 휴가를 표시하지 않음)
+    vacations = vacations.filter(vacation => vacation.status !== 'rejected');
+    
     // 추가 필터링 로직 적용
     if (activeFilter !== 'all') {
       vacations = vacations.filter(vacation => vacation.role === activeFilter);
@@ -376,8 +388,9 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
     Object.keys(calendarData).forEach(dateKey => {
       const data = calendarData[dateKey];
       if (data.vacations && data.vacations.length > 0) {
-        console.log(`${dateKey}의 휴무 신청자 ${data.vacations.length}명:`, 
-          data.vacations.map(v => v.userName).join(', '));
+        const validVacations = data.vacations.filter(v => v.status !== 'rejected');
+        console.log(`${dateKey}의 휴무 신청자 ${validVacations.length}명 (전체 ${data.vacations.length}명):`, 
+          validVacations.map(v => v.userName).join(', '));
       }
     });
   };
@@ -549,7 +562,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
             const dateKey = format(day, 'yyyy-MM-dd');
             const dayData = calendarData[dateKey];
             const vacations = getDayVacations(day);
-            const vacationersCount = vacations.filter(v => v.status !== 'rejected').length;
+            const vacationersCount = vacations.length;
             const maxPeople = dayData?.maxPeople || 3;
             
             return (
@@ -594,7 +607,6 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
                 {isCurrentMonth && vacations && vacations.length > 0 && (
                   <div className="mt-0.5 sm:mt-1.5 max-h-16 sm:max-h-12 md:max-h-16 overflow-hidden">
                     {vacations
-                      .filter(v => v.status !== 'rejected')
                       .slice(0, 3) // 최대 3명만 표시
                       .map((vacation, idx) => (
                         <div key={idx} className="flex items-center text-[6px] sm:text-xs mb-0.5">
@@ -619,13 +631,13 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
                           }`}>
                             {vacation.userName || `이름 없음`}
                           </span>
-                          {vacation.type === 'mandatory' && vacation.status !== 'rejected' && (
+                          {vacation.type === 'mandatory' && (
                             <MdStar className="hidden sm:inline ml-0.5 text-amber-500 flex-shrink-0" size={10} />
                           )}
                         </div>
                       ))}
-                    {vacations.filter(v => v.status !== 'rejected').length > 3 && (
-                      <div className="text-[6px] sm:text-xs text-gray-500 mt-0.5">+{vacations.filter(v => v.status !== 'rejected').length - 3}명</div>
+                    {vacations.length > 3 && (
+                      <div className="text-[6px] sm:text-xs text-gray-500 mt-0.5">+{vacations.length - 3}명</div>
                     )}
                   </div>
                 )}

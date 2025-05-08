@@ -663,58 +663,58 @@ export default function AdminPage() {
                   <div className="flex flex-col">
                     <span className="text-sm font-medium text-gray-700 mb-2">휴무 상태</span>
                     <div className="inline-flex shadow-sm rounded-md overflow-hidden">
-                      <button
-                        onClick={() => toggleStatusFilter('all')}
+                    <button
+                      onClick={() => toggleStatusFilter('all')}
                         className={`px-4 py-2 text-sm font-medium flex items-center justify-center gap-1.5 transition-all ${
-                          statusFilter === 'all' 
+                        statusFilter === 'all' 
                             ? 'bg-indigo-600 text-white ring-2 ring-indigo-600 ring-offset-1 z-10 relative' 
-                            : 'bg-white text-gray-700 hover:bg-gray-50'
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
                         } border-y border-l border-gray-300`}
-                      >
+                    >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
                         </svg>
-                        전체
-                      </button>
-                      <button
-                        onClick={() => toggleStatusFilter('pending')}
+                      전체
+                    </button>
+                    <button
+                      onClick={() => toggleStatusFilter('pending')}
                         className={`px-4 py-2 text-sm font-medium flex items-center justify-center gap-1.5 transition-all ${
-                          statusFilter === 'pending' 
+                        statusFilter === 'pending' 
                             ? 'bg-yellow-500 text-white ring-2 ring-yellow-500 ring-offset-1 z-10 relative' 
-                            : 'bg-white text-gray-700 hover:bg-gray-50'
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
                         } border-y border-gray-300 -ml-px`}
-                      >
+                    >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        대기중
-                      </button>
-                      <button
-                        onClick={() => toggleStatusFilter('approved')}
+                      대기중
+                    </button>
+                    <button
+                      onClick={() => toggleStatusFilter('approved')}
                         className={`px-4 py-2 text-sm font-medium flex items-center justify-center gap-1.5 transition-all ${
-                          statusFilter === 'approved' 
+                        statusFilter === 'approved' 
                             ? 'bg-green-600 text-white ring-2 ring-green-600 ring-offset-1 z-10 relative' 
-                            : 'bg-white text-gray-700 hover:bg-gray-50'
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
                         } border-y border-gray-300 -ml-px`}
-                      >
+                    >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
-                        승인됨
-                      </button>
-                      <button
-                        onClick={() => toggleStatusFilter('rejected')}
+                      승인됨
+                    </button>
+                    <button
+                      onClick={() => toggleStatusFilter('rejected')}
                         className={`px-4 py-2 text-sm font-medium flex items-center justify-center gap-1.5 transition-all ${
-                          statusFilter === 'rejected' 
+                        statusFilter === 'rejected' 
                             ? 'bg-red-600 text-white ring-2 ring-red-600 ring-offset-1 z-10 relative' 
-                            : 'bg-white text-gray-700 hover:bg-gray-50'
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
                         } border-y border-r border-gray-300 -ml-px`}
-                      >
+                    >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
-                        거부됨
-                      </button>
+                      거부됨
+                    </button>
                     </div>
                   </div>
 

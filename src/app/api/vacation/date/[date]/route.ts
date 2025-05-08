@@ -57,6 +57,7 @@ export async function GET(
     // 응답 데이터 구성
     const response = {
       date: dateParam,
+      formattedDate: format(date, 'yyyy-MM-dd'),
       vacations,
       totalVacationers,
       maxPeople: limitInfo?.maxPeople !== undefined ? limitInfo.maxPeople : 3, // maxPeople이 0이면 0을 반환, undefined면 3 반환

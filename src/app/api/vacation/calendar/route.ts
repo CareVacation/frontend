@@ -23,20 +23,20 @@ export async function GET(request: NextRequest) {
     const startDate = url.searchParams.get('startDate');
     const endDate = url.searchParams.get('endDate');
     const roleFilter = url.searchParams.get('roleFilter') || 'all';
-    
+
     // 파라미터 유효성 검사
     if (!startDate || !endDate) {
       return NextResponse.json({
         error: 'startDate와 endDate 파라미터가 필요합니다.'
       }, { status: 400 });
-    }
+  }
 
     // 날짜 형식 유효성 검사
     if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
       return NextResponse.json({
         error: '날짜 형식은 YYYY-MM-DD여야 합니다.'
       }, { status: 400 });
-    }
+  }
 
     // 휴가 신청 데이터 가져오기
     try {
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       const limits = await getVacationLimitsForMonthRange(startDate, endDate);
       
       console.log(`[API] 데이터 조회 완료: 휴가=${vacations.length}건, 제한=${limits.length}건`);
-      
+
       // 직원 유형별 필터링
       let filteredVacations = vacations;
       if (roleFilter !== 'all') {
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
           vacation.role === roleFilter || vacation.role === 'all'
         );
         console.log(`[API] 직원 유형 필터링 적용 (${roleFilter}): ${filteredVacations.length}건`);
-      }
+    }
 
       // 날짜별로 휴가 데이터 정리
       const dateMap = new Map();
@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
         } else {
           // 이미 있는 날짜 데이터에 maxPeople 정보만 추가/갱신
           dateMap.get(dateKey).maxPeople = limit.maxPeople;
-        }
+    }
       });
       
       // 데이터를 객체로 변환 (Map -> Object)
