@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, isSameDay, addDays, getDay, startOfWeek, endOfWeek, isBefore, startOfDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -20,231 +20,202 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
   const [retryCount, setRetryCount] = useState(0);
   const [showMonthError, setShowMonthError] = useState(false);
   const [isButtonDisabled, setIsButtonDisabled] = useState(false);
+  const [error, setError] = useState('');
   
   const BUTTON_DELAY = 750;
 
   const MAX_RETRY_COUNT = 3;
+  const MAX_RETRY_DELAY = 1000;
 
   const today = new Date();
-
-  const monthStart = useMemo(() => startOfMonth(currentDate), [currentDate]);
-  const monthEnd = useMemo(() => endOfMonth(currentDate), [currentDate]);
-  const calendarStart = useMemo(() => startOfWeek(monthStart, { weekStartsOn: 0 }), [monthStart]);
-  const calendarEnd = useMemo(() => endOfWeek(monthEnd, { weekStartsOn: 0 }), [monthEnd]);
-
-  const calendarDays = useMemo(() => {
-    return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
-  }, [calendarStart, calendarEnd]);
-
-  const disableButtonsTemporarily = () => {
-    setIsButtonDisabled(true);
-    setTimeout(() => {
-      setIsButtonDisabled(false);
-    }, BUTTON_DELAY);
-  };
-
-  const prevMonth = () => {
-    if (isButtonDisabled || isLoading) return;
-    
-    setCurrentDate(subMonths(currentDate, 1));
-    disableButtonsTemporarily();
-  };
   
-  const nextMonth = () => {
-    if (isButtonDisabled || isLoading) return;
-    
-    setCurrentDate(addMonths(currentDate, 1));
-    disableButtonsTemporarily();
-  };
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(currentDate);
+  const startDate = startOfWeek(monthStart);
+  const endDate = endOfWeek(monthEnd);
   
-  const currentMonth = () => {
-    if (isButtonDisabled || isLoading) return;
+  // 달력에 표시될 날짜 범위 계산
+  const dateRange = eachDayOfInterval({ start: startDate, end: endDate });
+  
+  // 로그에 모든 휴가 데이터 출력
+  const logAllVacations = useCallback(() => {
+    if (Object.keys(calendarData).length === 0) {
+      console.log('로그 출력 건너뜀: 휴가 데이터가 없습니다.');
+      return;
+    }
     
-    setCurrentDate(new Date());
-    disableButtonsTemporarily();
-  };
+    Object.keys(calendarData).forEach(dateKey => {
+      const dateData = calendarData[dateKey];
+      if (dateData && dateData.vacations && dateData.vacations.length > 0) {
+        // 필터에 맞는 휴가만 로깅
+        const filteredVacations = dateData.vacations.filter(v => {
+          return activeFilter === 'all' || v.role === activeFilter || v.role === 'all';
+        });
+        
+        if (filteredVacations.length > 0) {
+          const vacationersInfo = filteredVacations.map(v => 
+            `${v.name}(${v.role}, ${v.status})`
+          ).join(', ');
+          console.log(`${dateKey}의 휴무 신청자 필터링 후 (${filteredVacations.length}명): ${vacationersInfo}`);
+        }
+      }
+    });
+  }, [calendarData, activeFilter]);
+  
+  const abortControllerRef = React.useRef<AbortController | null>(null);
+  const currentRequestIdRef = React.useRef<string | null>(null);
 
-  const fetchCalendarData = async () => {
-    if (retryCount >= MAX_RETRY_COUNT) {
-      console.error(`최대 재시도 횟수(${MAX_RETRY_COUNT}회) 초과. 요청을 중단합니다.`);
+  const fetchCalendarData = useCallback(async (date: Date, retry = 0) => {
+    if (retry >= MAX_RETRY_COUNT) {
+      setError(`${retry}회 재시도 후에도 데이터를 가져오지 못했습니다. 페이지를 새로고침해 주세요.`);
       setIsLoading(false);
       setIsMonthChanging(false);
-      setShowMonthError(true);
       return;
     }
 
+    if (abortControllerRef.current) {
+      console.log('이전 요청 취소됨');
+      abortControllerRef.current.abort();
+    }
+
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
     setIsLoading(true);
-    setIsMonthChanging(true);
-    
+    setError('');
+
     try {
-      console.log(`캘린더 데이터 가져오기 시작: ${new Date().toISOString()}`);
+      const requestId = Math.random().toString(36).substring(2, 15);
+      currentRequestIdRef.current = requestId;
       
-      const requestedMonth = format(currentDate, 'yyyy-MM');
-      console.log(`요청 월: ${requestedMonth}`);
+      console.log(`캘린더 데이터 가져오기 시작: ${date.toISOString()}`);
       
-      const apiUrl = `/api/vacation/calendar`;
+      const year = date.getFullYear();
+      const month = date.getMonth();
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0);
       
-      const timestamp = Date.now();
-      const randomStr = Math.random().toString(36).substring(2, 15);
+      const startDateStr = format(startDate, 'yyyy-MM-dd');
+      const endDateStr = format(endDate, 'yyyy-MM-dd');
+      const requestMonth = format(startDate, 'yyyy-MM');
       
-      const params = new URLSearchParams({
-        startDate: format(monthStart, 'yyyy-MM-dd'),
-        endDate: format(monthEnd, 'yyyy-MM-dd'),
-        roleFilter: activeFilter,
-        _t: timestamp.toString(),
-        _r: randomStr,
-        _retry: retryCount.toString()
-      });
+      console.log(`요청 월: ${requestMonth}`);
+      console.log(`요청 날짜 범위: ${startDateStr} ~ ${endDateStr}`);
+
+      const url = `/api/vacation/calendar?startDate=${startDateStr}&endDate=${endDateStr}&roleFilter=${activeFilter}&_t=${Date.now()}&_r=${requestId}&_retry=${retry}`;
+      console.log(`캘린더 API 요청 URL: ${url}`);
       
-      console.log('캘린더 API 요청 URL:', `${apiUrl}?${params}`);
-      console.log('요청 날짜 범위:', format(monthStart, 'yyyy-MM-dd'), '~', format(monthEnd, 'yyyy-MM-dd'));
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-      
-      const response = await fetch(`${apiUrl}?${params}`, {
-        method: 'GET',
+      const response = await fetch(url, {
+        signal: signal,
         headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
-          'Expires': '0',
-          'X-Request-Time': new Date().toISOString(),
-          'X-Retry-Count': retryCount.toString()
-        },
-        signal: controller.signal
+          'Expires': '0'
+        }
       });
-      
-      clearTimeout(timeoutId);
-      
+
+      if (signal.aborted) {
+        console.log('요청이 취소되었습니다.');
+        return;
+      }
+
+      if (currentRequestIdRef.current !== requestId) {
+        console.log(`요청 ID 불일치로 응답 무시 (현재: ${currentRequestIdRef.current}, 응답: ${requestId})`);
+        return;
+      }
+
       if (!response.ok) {
-        throw new Error(`API 응답 오류: ${response.status} ${response.statusText}`);
+        const errorData = await response.json();
+        console.error('API 오류:', errorData);
+        
+        if (errorData.error && errorData.error.includes('월 불일치')) {
+          console.error(`응답 데이터 월 불일치! 요청: ${requestMonth.substring(5)}, 응답: ${errorData.error.match(/응답: (\d{2})월/)?.[1] || '알 수 없음'} (시도: ${retry + 1}/${MAX_RETRY_COUNT})`);
+          
+          const delay = Math.min(1000 * Math.pow(2, retry), MAX_RETRY_DELAY);
+          console.log(`잘못된 월 데이터 응답. 무시하고 ${delay}ms 후 재시도합니다.`);
+          
+          setTimeout(() => {
+            if (currentRequestIdRef.current === requestId) {
+              fetchCalendarData(date, retry + 1);
+            }
+          }, delay);
+          return;
+        }
+        
+        throw new Error(errorData.error || '알 수 없는 오류가 발생했습니다.');
+      }
+
+      const data = await response.json();
+      
+      const dates = Object.keys(data.dates || {});
+      if (dates.length > 0) {
+        const firstDateMonth = dates[0].substring(0, 7);
+        
+        if (firstDateMonth !== requestMonth) {
+          console.error(`응답 데이터 월 불일치! 요청: ${requestMonth.substring(5)}, 응답: ${firstDateMonth.substring(5)} (시도: ${retry + 1}/${MAX_RETRY_COUNT})`);
+          
+          const hasRequestMonthData = dates.some(date => date.startsWith(requestMonth));
+          
+          if (!hasRequestMonthData) {
+            const delay = Math.min(1000 * Math.pow(2, retry), MAX_RETRY_DELAY);
+            console.log(`잘못된 월 데이터 응답. 무시하고 ${delay}ms 후 재시도합니다.`);
+            
+            setTimeout(() => {
+              if (currentRequestIdRef.current === requestId) {
+                fetchCalendarData(date, retry + 1);
+              }
+            }, delay);
+            return;
+          } else {
+            console.warn(`응답에 일부 ${requestMonth} 데이터가 있습니다. 필터링하여 사용합니다.`);
+            
+            const filteredDates: Record<string, any> = {};
+            Object.entries(data.dates).forEach(([dateKey, dateData]) => {
+              if (dateKey.startsWith(requestMonth)) {
+                filteredDates[dateKey] = dateData;
+              }
+            });
+            
+            data.dates = filteredDates;
+          }
+        }
       }
       
-      const apiData = await response.json();
-      
-      const currentMonth = format(currentDate, 'yyyy-MM');
-      if (currentMonth !== requestedMonth) {
-        console.log(`응답 무시: 요청 월(${requestedMonth})과 현재 월(${currentMonth})이 다름`);
+      if (currentRequestIdRef.current === requestId) {
+        console.log('캘린더 데이터 가져오기 완료');
+        
+        const dateKeys = Object.keys(data.dates || {});
+        console.log(`응답 데이터 날짜 키 (${dateKeys.length}개): ${dateKeys.slice(0, 3).join(', ')}${dateKeys.length > 3 ? '...' : ''}`);
+        
+        setCalendarData(data.dates || {});
+        setRetryCount(0);
+        setIsLoading(false);
+        setIsMonthChanging(false);
+      }
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log('요청이 취소되었습니다.');
         return;
       }
       
-      if (apiData && apiData.dates) {
-        const responseDateKeys = Object.keys(apiData.dates);
-        if (responseDateKeys.length > 0) {
-          const firstDateMonth = responseDateKeys[0].substring(5, 7);
-          const requestedMonthString = format(monthStart, 'MM');
-          
-          if (firstDateMonth !== requestedMonthString) {
-            console.error(`응답 데이터 월 불일치! 요청: ${requestedMonthString}월, 응답: ${firstDateMonth}월 (시도: ${retryCount + 1}/${MAX_RETRY_COUNT})`);
-            console.log('잘못된 월 데이터 응답. 무시하고 재시도합니다.');
-            
-            setRetryCount(prev => prev + 1);
-            
-            setTimeout(() => {
-              setIsMonthChanging(false);
-              fetchCalendarData();
-            }, 1000);
-            return;
-          }
-        }
-      }
+      console.error('캘린더 데이터 가져오기 오류:', error);
       
-      setRetryCount(0);
-      setShowMonthError(false);
-      
-      console.log('API 응답 데이터 수신:', apiData);
-      
-      const formattedData: VacationData = {};
-      
-      if (apiData && apiData.dates && typeof apiData.dates === 'object') {
-        console.log('날짜 데이터 발견:', Object.keys(apiData.dates).length, '개 날짜');
+      if (retry < MAX_RETRY_COUNT - 1) {
+        const delay = Math.min(1000 * Math.pow(2, retry), MAX_RETRY_DELAY);
+        console.log(`${delay}ms 후 재시도합니다 (${retry + 1}/${MAX_RETRY_COUNT})`);
         
-        Object.keys(apiData.dates).forEach(dateKey => {
-          const dateData = apiData.dates[dateKey];
-          
-          if (dateData) {
-            console.log(`날짜 ${dateKey} 데이터:`, dateData);
-            
-            const vacations = Array.isArray(dateData.vacations) ? dateData.vacations : [];
-            const people = Array.isArray(dateData.people) ? dateData.people : [];
-            const maxPeople = dateData.maxPeople !== undefined ? dateData.maxPeople : 3;
-            
-            const totalVacationers = dateData.totalVacationers !== undefined 
-              ? dateData.totalVacationers 
-              : vacations.filter((v: VacationRequest) => v.status !== 'rejected').length;
-            
-            formattedData[dateKey] = {
-              date: dateKey,
-              totalVacationers: totalVacationers,
-              vacations: vacations,
-              people: people,
-              maxPeople: maxPeople
-            };
-            
-            console.log(`날짜 ${dateKey} 처리 완료: 휴무자 ${totalVacationers}명, 최대 ${maxPeople}명`);
+        setTimeout(() => {
+          if (currentRequestIdRef.current === currentRequestIdRef.current) {
+            fetchCalendarData(date, retry + 1);
           }
-        });
+        }, delay);
       } else {
-        console.log('이전 형식의 API 응답 감지');
-        Object.keys(apiData).forEach(dateKey => {
-          const item = apiData[dateKey];
-          if (item) {
-            console.log(`날짜 ${dateKey} 데이터 처리:`, item);
-            
-            const validVacations = Array.isArray(item.vacations) 
-              ? item.vacations.filter((v: VacationRequest) => v.status !== 'rejected') 
-              : [];
-            
-            const totalVacationers = item.totalVacationers !== undefined 
-              ? item.totalVacationers 
-              : validVacations.length;
-            
-            formattedData[dateKey] = {
-              date: dateKey,
-              totalVacationers: totalVacationers,
-              vacations: Array.isArray(item.vacations) ? item.vacations : [],
-              maxPeople: item.maxPeople !== undefined ? item.maxPeople : 3
-            };
-            
-            console.log(`날짜 ${dateKey} 변환 완료: ${formattedData[dateKey].totalVacationers}/${formattedData[dateKey].maxPeople}`);
-          }
-        });
-      }
-      
-      console.log('변환된 캘린더 데이터:', formattedData);
-      console.log('데이터 엔트리 수:', Object.keys(formattedData).length);
-      
-      setTimeout(() => {
-        if (requestedMonth === format(currentDate, 'yyyy-MM')) {
-          setCalendarData(formattedData);
-          
-          if (selectedDate && isSameMonth(selectedDate, currentDate)) {
-            fetchSelectedDateData(selectedDate);
-          }
-          
-          logAllVacations();
-        } else {
-          console.log('상태 업데이트 무시: 요청 월과 현재 월이 다름');
-        }
-      }, 100);
-    } catch (error) {
-      console.error('캘린더 데이터 로딩 오류:', error);
-      
-      if (error instanceof Error) {
-        console.error('에러 메시지:', error.message);
-        console.error('에러 스택:', error.stack);
-      }
-      
-      setIsLoading(false);
-      setIsMonthChanging(false);
-    } finally {
-      setTimeout(() => {
+        setError('데이터를 가져오지 못했습니다. 페이지를 새로고침해 주세요.');
         setIsLoading(false);
         setIsMonthChanging(false);
-      }, 100);
+      }
     }
-  };
+  }, [activeFilter, MAX_RETRY_COUNT, MAX_RETRY_DELAY]);
 
   const fetchSelectedDateData = async (date: Date) => {
     try {
@@ -295,46 +266,128 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
     }
   };
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
+    const refreshData = async () => {
+      try {
+        await fetchCalendarData(currentDate);
+        
+        setTimeout(async () => {
+          console.log('지연 데이터 갱신 실행...');
+          await fetchCalendarData(currentDate);
+          
+          if (selectedDate) {
+            fetchSelectedDateData(selectedDate);
+          }
+        }, 1000);
+      } catch (err) {
+        console.error('새로고침 중 오류:', err);
+      }
+    };
+
     console.log('수동 새로고침 요청');
     setIsLoading(true);
-    fetchCalendarData();
+    refreshData();
     logAllVacations();
-  };
+  }, [fetchCalendarData, currentDate, selectedDate, fetchSelectedDateData, logAllVacations]);
 
+  const prevMonth = useCallback(() => {
+    if (isButtonDisabled) return;
+    
+    setIsButtonDisabled(true);
+    setIsMonthChanging(true);
+    
+    // 이전 요청 취소
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    setCurrentDate(prev => {
+      const newDate = subMonths(prev, 1);
+      console.log(`월 변경: ${format(prev, 'yyyy-MM')} → ${format(newDate, 'yyyy-MM')}`);
+      return newDate;
+    });
+    
+    setTimeout(() => {
+      setIsButtonDisabled(false);
+    }, BUTTON_DELAY);
+  }, [isButtonDisabled, BUTTON_DELAY, setCurrentDate, setIsMonthChanging]);
+
+  const nextMonth = useCallback(() => {
+    if (isButtonDisabled) return;
+    
+    setIsButtonDisabled(true);
+    setIsMonthChanging(true);
+    
+    // 이전 요청 취소
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    setCurrentDate(prev => {
+      const newDate = addMonths(prev, 1);
+      console.log(`월 변경: ${format(prev, 'yyyy-MM')} → ${format(newDate, 'yyyy-MM')}`);
+      return newDate;
+    });
+    
+    setTimeout(() => {
+      setIsButtonDisabled(false);
+    }, BUTTON_DELAY);
+  }, [isButtonDisabled, BUTTON_DELAY, setCurrentDate, setIsMonthChanging]);
+
+  const resetToCurrentMonth = useCallback(() => {
+    if (isButtonDisabled) return;
+    
+    setIsButtonDisabled(true);
+    setIsMonthChanging(true);
+    
+    // 이전 요청 취소
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    setCurrentDate(startOfMonth(new Date()));
+    
+    setTimeout(() => {
+      setIsButtonDisabled(false);
+    }, BUTTON_DELAY);
+  }, [isButtonDisabled, BUTTON_DELAY, setCurrentDate, setIsMonthChanging]);
+
+  // 캘린더 초기 로드
   useEffect(() => {
     console.log('캘린더 마운트됨 - 초기 데이터 로드 시작');
-    fetchCalendarData();
-  }, []);
+    fetchCalendarData(currentDate);
+  }, [fetchCalendarData, currentDate]);
 
+  // 월 변경시 데이터 로드
   useEffect(() => {
     console.log('월 변경됨 - 데이터 로드');
     if (!isMonthChanging) {
-      fetchCalendarData();
+      fetchCalendarData(currentDate);
     } else {
       console.log('월 변경 중 - 중복 요청 방지');
     }
-  }, [currentDate, monthStart, monthEnd]);
+  }, [currentDate, isMonthChanging, fetchCalendarData]);
 
+  // 탭이 포커스를 받았을 때 데이터 새로고침
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         console.log('페이지 포커스 복귀 - 데이터 새로고침');
-        fetchCalendarData();
+        fetchCalendarData(currentDate);
       }
     };
-    
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, [fetchCalendarData, currentDate]);
 
+  // 필터 변경시 데이터 로드
   useEffect(() => {
     console.log(`필터 변경됨: ${activeFilter} - 데이터 로드`);
-    fetchCalendarData();
-  }, [activeFilter]);
+    fetchCalendarData(currentDate);
+  }, [activeFilter, fetchCalendarData, currentDate]);
 
   useEffect(() => {
     setRetryCount(0);
@@ -447,18 +500,6 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
     return vacations;
   };
 
-  const logAllVacations = () => {
-    console.log("전체 캘린더 데이터:", calendarData);
-    Object.keys(calendarData).forEach(dateKey => {
-      const data = calendarData[dateKey];
-      if (data.vacations && data.vacations.length > 0) {
-        const validVacations = data.vacations.filter(v => v.status !== 'rejected');
-        console.log(`${dateKey}의 휴무 신청자 ${validVacations.length}명 (전체 ${data.vacations.length}명):`, 
-          validVacations.map(v => v.userName).join(', '));
-      }
-    });
-  };
-
   const handleShowAdminPanel = () => {
     setShowAdminPanel(true);
   };
@@ -471,11 +512,11 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
     
     const refreshData = async () => {
       try {
-        await fetchCalendarData();
+        await fetchCalendarData(currentDate);
         
         setTimeout(async () => {
           console.log('지연 데이터 갱신 실행...');
-          await fetchCalendarData();
+          await fetchCalendarData(currentDate);
           
           if (selectedDate) {
             console.log('선택된 날짜 데이터 갱신...');
@@ -528,7 +569,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
               <FiChevronLeft size={14} className="sm:w-5 sm:h-5" />
             </button>
             <button 
-              onClick={currentMonth}
+              onClick={resetToCurrentMonth}
               disabled={isButtonDisabled || isLoading}
               className={`p-1 sm:p-2 rounded-lg transition-all duration-300 ${
                 isButtonDisabled || isLoading
@@ -627,7 +668,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
             }
           }}
         >
-          {calendarDays.map((day, index) => {
+          {dateRange.map((day, index) => {
             const isCurrentDay = isToday(day);
             const isSelected = selectedDate && isSameDay(day, selectedDate);
             const isCurrentMonth = isSameMonth(day, currentDate);

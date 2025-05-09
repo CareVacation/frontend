@@ -396,6 +396,9 @@ export async function getVacationLimits(startDate: Date, endDate: Date): Promise
 // 날짜 범위에 대한 휴가 신청 데이터 가져오기
 export async function getVacationRequestsForDateRange(startDateStr: string, endDateStr: string): Promise<VacationRequest[]> {
   try {
+    console.log(`[VacationService] 휴가 신청 조회: ${startDateStr} ~ ${endDateStr}`);
+    const queryStartTime = Date.now();
+    
     const vacationsRef = collection(db, VACATIONS_COLLECTION);
     const q = query(
       vacationsRef,
@@ -403,11 +406,25 @@ export async function getVacationRequestsForDateRange(startDateStr: string, endD
       where('date', '<=', endDateStr)
     );
 
+    // 캐시 문제를 방지하기 위해 항상 최신 데이터 가져오기 옵션 사용
     const querySnapshot = await getDocs(q);
     const vacations: VacationRequest[] = [];
     
+    console.log(`[VacationService] 휴가 신청 조회 완료: ${querySnapshot.size}건 (소요시간: ${Date.now() - queryStartTime}ms)`);
+    
+    // 응답 데이터의 날짜 범위 검증
+    const dateSet = new Set<string>();
+    
     querySnapshot.forEach((doc) => {
       const data = doc.data();
+      
+      // 날짜 검증
+      if (!data.date) {
+        console.warn(`[VacationService] 날짜 필드가 없는 휴가 발견: ID=${doc.id}`);
+        return; // 날짜 필드가 없는 문서 제외
+      }
+      
+      dateSet.add(data.date.substring(0, 7)); // YYYY-MM 추출
       
       // 기존 데이터에 필수 필드가 없는 경우 기본값 설정
       vacations.push({
@@ -419,6 +436,17 @@ export async function getVacationRequestsForDateRange(startDateStr: string, endD
         updatedAt: data.updatedAt || data.createdAt || new Date().toISOString()
       } as VacationRequest);
     });
+    
+    // 날짜 범위 검증 로그
+    const startMonth = startDateStr.substring(0, 7);
+    const endMonth = endDateStr.substring(0, 7);
+    const months = Array.from(dateSet);
+    
+    console.log(`[VacationService] 휴가 데이터 월: [${months.join(', ')}], 요청 월: ${startMonth}~${endMonth}`);
+    
+    if (months.length > 0 && !months.some(m => m === startMonth)) {
+      console.warn(`[VacationService] 휴가 데이터 월 불일치 감지! 요청: ${startMonth}, 데이터: ${months[0]}`);
+    }
     
     return vacations;
   } catch (error) {
@@ -450,6 +478,9 @@ export async function getVacationLimitsForMonthRange(startDateStr: string, endDa
     
     console.log(`[VacationService] 휴가 제한 데이터 조회 완료: ${querySnapshot.size}건 (소요시간: ${Date.now() - queryStartTime}ms)`);
     
+    // 응답 데이터의 날짜 범위 검증
+    const dateSet = new Set<string>();
+    
     // 첫 번째 패스: 모든 문서 처리 (날짜 ID가 아닌 것도 포함)
     querySnapshot.forEach((document) => {
       const data = document.data();
@@ -460,6 +491,8 @@ export async function getVacationLimitsForMonthRange(startDateStr: string, endDa
         return; // 날짜가 없는 문서는 건너뜀
       }
       
+      dateSet.add(dateStr.substring(0, 7)); // YYYY-MM 추출
+      
       // 기본값: 모든 문서를 맵에 추가
       if (!dateMap.has(dateStr)) {
         dateMap.set(dateStr, {
@@ -469,6 +502,17 @@ export async function getVacationLimitsForMonthRange(startDateStr: string, endDa
         });
       }
     });
+    
+    // 날짜 범위 검증 로그
+    const startMonth = startDateStr.substring(0, 7);
+    const endMonth = endDateStr.substring(0, 7);
+    const months = Array.from(dateSet);
+    
+    console.log(`[VacationService] 휴가 제한 데이터 월: [${months.join(', ')}], 요청 월: ${startMonth}~${endMonth}`);
+    
+    if (months.length > 0 && !months.some(m => m === startMonth)) {
+      console.warn(`[VacationService] 휴가 제한 데이터 월 불일치 감지! 요청: ${startMonth}, 데이터: ${months[0]}`);
+    }
     
     // 두 번째 패스: 날짜 ID를 가진 문서로 맵 업데이트 (우선순위 부여)
     querySnapshot.forEach((document) => {
