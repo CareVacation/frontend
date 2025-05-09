@@ -262,7 +262,10 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
 
   useEffect(() => {
     console.log(`필터 변경됨: ${activeFilter} - 데이터 로드`);
-    fetchCalendarData();
+    setCalendarData({});
+    setTimeout(() => {
+      fetchCalendarData();
+    }, 0);
   }, [activeFilter]);
 
   const handleDateClick = (date: Date) => {
@@ -298,7 +301,10 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
 
     const dateKey = format(date, 'yyyy-MM-dd');
     const dayData = calendarData[dateKey];
-    const vacationersCount = dayData?.totalVacationers || 0;
+    
+    const filteredVacations = getDayVacations(date);
+    const vacationersCount = filteredVacations.length;
+    
     const maxPeople = dayData?.maxPeople || 3;
     
     const isWeekend = date.getDay() === 0 || date.getDay() === 6;
@@ -316,8 +322,8 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
       return {
         bg: 'bg-green-100 hover:bg-green-200',
         text: isWeekend ? (date.getDay() === 0 ? 'text-red-600' : 'text-indigo-600') : 'text-green-800',
-          border: 'border-transparent',
-          status: '여유'
+        border: 'border-transparent',
+        status: '여유'
       };
     } else {
       return {
