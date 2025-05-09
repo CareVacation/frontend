@@ -17,6 +17,10 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'all' | 'caregiver' | 'office'>('all');
   const [isMonthChanging, setIsMonthChanging] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [showMonthError, setShowMonthError] = useState(false);
+
+  const MAX_RETRY_COUNT = 3;
 
   const today = new Date();
 
@@ -34,6 +38,14 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
   const currentMonth = () => setCurrentDate(new Date());
 
   const fetchCalendarData = async () => {
+    if (retryCount >= MAX_RETRY_COUNT) {
+      console.error(`최대 재시도 횟수(${MAX_RETRY_COUNT}회) 초과. 요청을 중단합니다.`);
+      setIsLoading(false);
+      setIsMonthChanging(false);
+      setShowMonthError(true);
+      return;
+    }
+
     setIsLoading(true);
     setIsMonthChanging(true);
     
@@ -45,12 +57,16 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
       
       const apiUrl = `/api/vacation/calendar`;
       
+      const timestamp = Date.now();
+      const randomStr = Math.random().toString(36).substring(2, 15);
+      
       const params = new URLSearchParams({
         startDate: format(monthStart, 'yyyy-MM-dd'),
         endDate: format(monthEnd, 'yyyy-MM-dd'),
         roleFilter: activeFilter,
-        _t: Date.now().toString(),
-        _r: Math.random().toString().substring(2, 8)
+        _t: timestamp.toString(),
+        _r: randomStr,
+        _retry: retryCount.toString()
       });
       
       console.log('캘린더 API 요청 URL:', `${apiUrl}?${params}`);
@@ -66,7 +82,8 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
           'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
           'Pragma': 'no-cache',
           'Expires': '0',
-          'X-Request-Time': new Date().toISOString()
+          'X-Request-Time': new Date().toISOString(),
+          'X-Retry-Count': retryCount.toString()
         },
         signal: controller.signal
       });
@@ -92,17 +109,22 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
           const requestedMonthString = format(monthStart, 'MM');
           
           if (firstDateMonth !== requestedMonthString) {
-            console.error(`응답 데이터 월 불일치! 요청: ${requestedMonthString}월, 응답: ${firstDateMonth}월`);
+            console.error(`응답 데이터 월 불일치! 요청: ${requestedMonthString}월, 응답: ${firstDateMonth}월 (시도: ${retryCount + 1}/${MAX_RETRY_COUNT})`);
             console.log('잘못된 월 데이터 응답. 무시하고 재시도합니다.');
+            
+            setRetryCount(prev => prev + 1);
             
             setTimeout(() => {
               setIsMonthChanging(false);
               fetchCalendarData();
-            }, 500);
+            }, 1000);
             return;
           }
         }
       }
+      
+      setRetryCount(0);
+      setShowMonthError(false);
       
       console.log('API 응답 데이터 수신:', apiData);
       
@@ -186,6 +208,9 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
         console.error('에러 메시지:', error.message);
         console.error('에러 스택:', error.stack);
       }
+      
+      setIsLoading(false);
+      setIsMonthChanging(false);
     } finally {
       setTimeout(() => {
         setIsLoading(false);
@@ -283,6 +308,11 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
     console.log(`필터 변경됨: ${activeFilter} - 데이터 로드`);
     fetchCalendarData();
   }, [activeFilter]);
+
+  useEffect(() => {
+    setRetryCount(0);
+    setShowMonthError(false);
+  }, [currentDate]);
 
   const handleDateClick = (date: Date) => {
     if (!isSameMonth(date, currentDate)) return;
@@ -435,6 +465,12 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
 
   return (
     <div className="w-full bg-white rounded-xl shadow-lg overflow-hidden">
+      {showMonthError && (
+        <div className="p-3 m-3 bg-red-100 text-red-700 rounded-lg text-sm">
+          <p className="font-medium">데이터 로드 오류</p>
+          <p>요청한 월({format(currentDate, 'yyyy년 MM월')})의 데이터를 가져오지 못했습니다. 새로고침 버튼을 눌러 다시 시도해주세요.</p>
+        </div>
+      )}
       <div className="p-2 sm:p-6 flex flex-col">
         <div className="flex justify-between items-center mb-2 sm:mb-6">
           <div className="flex items-center space-x-1 sm:space-x-4">
