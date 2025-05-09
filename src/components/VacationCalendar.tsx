@@ -262,10 +262,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
 
   useEffect(() => {
     console.log(`필터 변경됨: ${activeFilter} - 데이터 로드`);
-    setCalendarData({});
-    setTimeout(() => {
-      fetchCalendarData();
-    }, 0);
+    fetchCalendarData();
   }, [activeFilter]);
 
   const handleDateClick = (date: Date) => {
