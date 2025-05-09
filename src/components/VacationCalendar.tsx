@@ -16,6 +16,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'all' | 'caregiver' | 'office'>('all');
+  const [isMonthChanging, setIsMonthChanging] = useState(false);
 
   const today = new Date();
 
@@ -34,26 +35,30 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
 
   const fetchCalendarData = async () => {
     setIsLoading(true);
+    setIsMonthChanging(true);
+    
     try {
       console.log(`캘린더 데이터 가져오기 시작: ${new Date().toISOString()}`);
       
-      // 현재 호스트 기반 절대 URL 사용
+      const requestedMonth = format(currentDate, 'yyyy-MM');
+      console.log(`요청 월: ${requestedMonth}`);
+      
       const apiUrl = `/api/vacation/calendar`;
       
-      // 검색 파라미터 추가 - 직원 유형 필터 추가
       const params = new URLSearchParams({
         startDate: format(monthStart, 'yyyy-MM-dd'),
         endDate: format(monthEnd, 'yyyy-MM-dd'),
         roleFilter: activeFilter,
-        // 캐시 방지를 위한 타임스탬프 추가 (더 세분화된 값)
         _t: Date.now().toString(),
-        _r: Math.random().toString().substring(2, 8) // 추가 랜덤값
+        _r: Math.random().toString().substring(2, 8)
       });
       
       console.log('캘린더 API 요청 URL:', `${apiUrl}?${params}`);
       console.log('요청 날짜 범위:', format(monthStart, 'yyyy-MM-dd'), '~', format(monthEnd, 'yyyy-MM-dd'));
       
-      // fetch API 사용 - 캐시 방지 헤더 강화
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+      
       const response = await fetch(`${apiUrl}?${params}`, {
         method: 'GET',
         headers: {
@@ -61,44 +66,46 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
           'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
           'Pragma': 'no-cache',
           'Expires': '0',
-          'X-Request-Time': new Date().toISOString() // 추가 헤더
-        }
+          'X-Request-Time': new Date().toISOString()
+        },
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
         throw new Error(`API 응답 오류: ${response.status} ${response.statusText}`);
       }
       
-      // 응답 데이터 파싱
       const apiData = await response.json();
+      
+      const currentMonth = format(currentDate, 'yyyy-MM');
+      if (currentMonth !== requestedMonth) {
+        console.log(`응답 무시: 요청 월(${requestedMonth})과 현재 월(${currentMonth})이 다름`);
+        return;
+      }
+      
       console.log('API 응답 데이터 수신:', apiData);
       
-      // API 응답을 VacationData 형식으로 변환 - 완전히 새로운 객체로 초기화
       const formattedData: VacationData = {};
       
-      // 응답이 { dates: { ... } } 형식으로 왔는지 확인
       if (apiData && apiData.dates && typeof apiData.dates === 'object') {
         console.log('날짜 데이터 발견:', Object.keys(apiData.dates).length, '개 날짜');
         
-        // 각 날짜별 데이터 처리
         Object.keys(apiData.dates).forEach(dateKey => {
           const dateData = apiData.dates[dateKey];
           
           if (dateData) {
-            // 디버깅용 로그
             console.log(`날짜 ${dateKey} 데이터:`, dateData);
             
-            // 상세 데이터 분석
             const vacations = Array.isArray(dateData.vacations) ? dateData.vacations : [];
             const people = Array.isArray(dateData.people) ? dateData.people : [];
             const maxPeople = dateData.maxPeople !== undefined ? dateData.maxPeople : 3;
             
-            // 총 휴무자 수 계산 시 거부된 휴가 제외
             const totalVacationers = dateData.totalVacationers !== undefined 
               ? dateData.totalVacationers 
               : vacations.filter((v: VacationRequest) => v.status !== 'rejected').length;
             
-            // 데이터 저장
             formattedData[dateKey] = {
               date: dateKey,
               totalVacationers: totalVacationers,
@@ -111,14 +118,12 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
           }
         });
       } else {
-        // 이전 형식의 API 응답 처리 (호환성 유지)
         console.log('이전 형식의 API 응답 감지');
         Object.keys(apiData).forEach(dateKey => {
           const item = apiData[dateKey];
           if (item) {
             console.log(`날짜 ${dateKey} 데이터 처리:`, item);
             
-            // 거부된 휴무는 총 인원 수에서 제외
             const validVacations = Array.isArray(item.vacations) 
               ? item.vacations.filter((v: VacationRequest) => v.status !== 'rejected') 
               : [];
@@ -127,7 +132,6 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
               ? item.totalVacationers 
               : validVacations.length;
             
-            // 완전히 새로운 객체 생성 - 기존 데이터 병합하지 않음
             formattedData[dateKey] = {
               date: dateKey,
               totalVacationers: totalVacationers,
@@ -135,7 +139,6 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
               maxPeople: item.maxPeople !== undefined ? item.maxPeople : 3
             };
             
-            // 디버깅용 로그
             console.log(`날짜 ${dateKey} 변환 완료: ${formattedData[dateKey].totalVacationers}/${formattedData[dateKey].maxPeople}`);
           }
         });
@@ -144,36 +147,39 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
       console.log('변환된 캘린더 데이터:', formattedData);
       console.log('데이터 엔트리 수:', Object.keys(formattedData).length);
       
-      // 이전 데이터 없이 새로운 데이터로 완전히 교체
-      setCalendarData(formattedData);
-      
-      // 선택된 날짜가 있다면 해당 날짜의 데이터를 다시 가져옴
-      if (selectedDate && isSameMonth(selectedDate, currentDate)) {
-        fetchSelectedDateData(selectedDate);
-      }
-      
-      // 데이터 로드 성공 시 로깅
-      logAllVacations();
+      setTimeout(() => {
+        if (requestedMonth === format(currentDate, 'yyyy-MM')) {
+          setCalendarData(formattedData);
+          
+          if (selectedDate && isSameMonth(selectedDate, currentDate)) {
+            fetchSelectedDateData(selectedDate);
+          }
+          
+          logAllVacations();
+        } else {
+          console.log('상태 업데이트 무시: 요청 월과 현재 월이 다름');
+        }
+      }, 100);
     } catch (error) {
       console.error('캘린더 데이터 로딩 오류:', error);
       
-      // 자세한 에러 정보 로깅
       if (error instanceof Error) {
         console.error('에러 메시지:', error.message);
         console.error('에러 스택:', error.stack);
       }
     } finally {
-      setIsLoading(false);
+      setTimeout(() => {
+        setIsLoading(false);
+        setIsMonthChanging(false);
+      }, 100);
     }
   };
 
-  // 선택된 날짜의 데이터를 가져오는 함수
   const fetchSelectedDateData = async (date: Date) => {
     try {
       const formattedDate = format(date, 'yyyy-MM-dd');
       console.log(`선택된 날짜 데이터 가져오기: ${formattedDate}`);
       
-      // 캐시 방지를 위한 타임스탬프 추가
       const cacheParam = `?_t=${Date.now()}&_r=${Math.random().toString().substring(2, 8)}`;
       
       const response = await fetch(`/api/vacation/date/${formattedDate}${cacheParam}`, {
@@ -193,21 +199,16 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
       const data = await response.json();
       console.log('날짜 상세 데이터:', data);
       
-      // 데이터 업데이트 시 원본 데이터 보존
       if (data) {
-        // 기존 캘린더 데이터와 날짜키가 일치하는지 확인
         console.log(`CalendarData 현재 키:`, Object.keys(calendarData));
         
-        // 캘린더 데이터 복사본 생성
         const newCalendarData = { ...calendarData };
         
-        // 데이터 업데이트 - API에서 받은 정확한 날짜 키 사용
         const dateKey = data.date || formattedDate;
         console.log(`API 응답의 날짜 키: ${dateKey}, 요청한 날짜: ${formattedDate}`);
         
-        // 정확한 날짜 키로 데이터 저장 (기존 데이터와 병합하지 않고 새로운 객체 생성)
         newCalendarData[formattedDate] = {
-          date: formattedDate, // 요청한 정확한 날짜 사용
+          date: formattedDate,
           vacations: data.vacations || [],
           maxPeople: data.maxPeople !== undefined ? data.maxPeople : 3,
           totalVacationers: data.totalVacationers !== undefined 
@@ -215,18 +216,14 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
                           : (data.vacations || []).filter((v: VacationRequest) => v.status !== 'rejected').length
         };
         
-        // 캘린더 데이터 업데이트
-        setCalendarData(newCalendarData);
-        
-        // 변경된 데이터 확인 로그
         console.log(`${formattedDate} 날짜 데이터 업데이트 완료:`, newCalendarData[formattedDate]);
+        setCalendarData(newCalendarData);
       }
     } catch (error) {
       console.error('선택된 날짜 데이터 로딩 오류:', error);
     }
   };
 
-  // 새로고침 버튼 핸들러 함수
   const handleRefresh = () => {
     console.log('수동 새로고침 요청');
     setIsLoading(true);
@@ -234,19 +231,20 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
     logAllVacations();
   };
 
-  // 컴포넌트 마운트 시 데이터 로드 로직 강화
   useEffect(() => {
     console.log('캘린더 마운트됨 - 초기 데이터 로드 시작');
     fetchCalendarData();
-  }, []); // 마운트 시 한 번만 실행
+  }, []);
 
-  // 월 변경 시 데이터 갱신
   useEffect(() => {
     console.log('월 변경됨 - 데이터 로드');
-    fetchCalendarData();
+    if (!isMonthChanging) {
+      fetchCalendarData();
+    } else {
+      console.log('월 변경 중 - 중복 요청 방지');
+    }
   }, [currentDate, monthStart, monthEnd]);
 
-  // 웹 페이지 포커스가 돌아왔을 때 데이터 새로고침
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -255,16 +253,13 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
       }
     };
     
-    // 페이지 가시성 변경 이벤트 리스너 등록
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
-    // 정리 함수
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
-  // 필터 변경 시 데이터 재로드
   useEffect(() => {
     console.log(`필터 변경됨: ${activeFilter} - 데이터 로드`);
     fetchCalendarData();
@@ -276,7 +271,6 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
     if (selectedDate && isSameDay(date, selectedDate)) {
       setSelectedDate(null);
       
-      // 날짜 선택 해제 시 부모 컴포넌트에 null을 명시적으로 전달
       if (onDateSelect) {
         console.log('날짜 선택 해제, onDateSelect(null) 호출');
         onDateSelect(null);
@@ -286,10 +280,8 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
     
     setSelectedDate(date);
     
-    // 선택된 날짜 데이터 가져오기
     fetchSelectedDateData(date);
     
-    // page.tsx의 onDateSelect 함수를 호출하여 거기서 VacationDetails 모달을 표시
     if (onDateSelect) {
       onDateSelect(date);
     }
@@ -320,7 +312,6 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
       };
     }
     
-    // 두 단계만: 여유/마감
     if (vacationersCount < maxPeople) {
       return {
         bg: 'bg-green-100 hover:bg-green-200',
@@ -353,27 +344,22 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
     const dateKey = format(date, 'yyyy-MM-dd');
     const dayData = calendarData[dateKey];
     
-    // 데이터 존재 확인
     if (!dayData) {
       return [];
     }
     
-    // 1. vacations 배열이 있고 비어있지 않으면 사용 (휴무)
     let vacations = Array.isArray(dayData.vacations) && dayData.vacations.length > 0
       ? dayData.vacations
       : Array.isArray(dayData.people) && dayData.people.length > 0
       ? dayData.people
       : [];
     
-    // 거부된 휴가는 제외 (상태 표시에서는 거부된 휴가를 표시하지 않음)
     vacations = vacations.filter(vacation => vacation.status !== 'rejected');
     
-    // 추가 필터링 로직 적용
     if (activeFilter !== 'all') {
       vacations = vacations.filter(vacation => vacation.role === activeFilter);
     }
     
-    // 휴무 데이터 로깅 (디버깅용)
     if (vacations.length > 0) {
       console.log(`${dateKey}의 휴무 신청자 필터링 후 (${vacations.length}명):`, 
         vacations.map(v => `${v.userName}(${v.role}, ${v.status})`).join(', '));
@@ -382,7 +368,6 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
     return vacations;
   };
 
-  // 데이터 디버깅을 위한 함수 (휴무)
   const logAllVacations = () => {
     console.log("전체 캘린더 데이터:", calendarData);
     Object.keys(calendarData).forEach(dateKey => {
@@ -401,24 +386,18 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
 
   const handleCloseAdminPanel = () => {
     setShowAdminPanel(false);
-    // 패널이 닫힐 때 즉시 데이터 새로고침
     console.log('관리자 패널 닫힘, 데이터 즉시 새로고침...');
     
-    // 먼저 로딩 상태 표시
     setIsLoading(true);
     
-    // 타임스탬프로 캐시 방지하여 즉시 데이터 갱신
     const refreshData = async () => {
       try {
-        // 즉시 1차 갱신
         await fetchCalendarData();
         
-        // 1초 후 2차 갱신 (Firebase 데이터 반영 시간 고려)
         setTimeout(async () => {
           console.log('지연 데이터 갱신 실행...');
           await fetchCalendarData();
           
-          // 2차 갱신 후 추가로 선택된 날짜 데이터도 갱신
           if (selectedDate) {
             console.log('선택된 날짜 데이터 갱신...');
             await fetchSelectedDateData(selectedDate);
@@ -429,14 +408,12 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
       }
     };
     
-    // 데이터 갱신 함수 실행
     refreshData();
   };
 
   return (
     <div className="w-full bg-white rounded-xl shadow-lg overflow-hidden">
       <div className="p-2 sm:p-6 flex flex-col">
-        {/* 캘린더 헤더 */}
         <div className="flex justify-between items-center mb-2 sm:mb-6">
           <div className="flex items-center space-x-1 sm:space-x-4">
             <div className="bg-blue-100 p-1 sm:p-2 rounded-full text-blue-600">
@@ -484,7 +461,6 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
           </div>
         </div>
 
-        {/* 직원 유형 필터 탭 수정 - 색상 대비 강화 */}
         <div className="flex justify-center mb-3 sm:mb-5">
           <div className="inline-flex bg-gray-100 p-1 rounded-lg shadow-sm">
             <button
@@ -520,9 +496,6 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
           </div>
         </div>
         
-        {/* 필터링 레전드(범례) 섹션 삭제 */}
-
-        {/* 요일 헤더 */}
         <div className="grid grid-cols-7 border-b border-gray-200">
           {WEEKDAYS.map((day, index) => (
             <div 
@@ -537,7 +510,6 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
           ))}
         </div>
 
-        {/* 캘린더 그리드 */}
         <motion.div 
           className="grid grid-cols-7 gap-x-1 gap-y-2 sm:gap-x-3 sm:gap-y-4"
           initial="hidden"
@@ -603,15 +575,12 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
                   )}
                 </div>
                 
-                {/* 휴무자 목록 바로 표시 */}
                 {isCurrentMonth && vacations && vacations.length > 0 && (
                   <div className="mt-0.5 sm:mt-1.5 max-h-16 sm:max-h-12 md:max-h-16 overflow-hidden">
                     {vacations
-                      .slice(0, 3) // 최대 3명만 표시
+                      .slice(0, 3)
                       .map((vacation, idx) => (
                         <div key={idx} className="flex items-center text-[6px] sm:text-xs mb-0.5">
-                          {/* 직원 유형 색상 표시 동그라미 제거 */}
-                          
                           <span className={`flex-shrink-0 whitespace-nowrap text-[6px] sm:text-xs mr-0.5 sm:mr-1 px-0.5 sm:px-1 py-0 sm:py-0.5 rounded-full
                             ${vacation.status === 'approved' 
                               ? 'bg-green-100 text-green-600' 
@@ -642,7 +611,6 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
                   </div>
                 )}
                 
-                {/* 인원 제한 상태 표시 */}
                 {isCurrentMonth && (
                   <div className="absolute bottom-0 sm:bottom-1 right-0 sm:right-1.5">
                     {vacationersCount >= maxPeople ? (
@@ -657,7 +625,6 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
                   </div>
                 )}
                 
-                {/* 선택 인디케이터 */}
                 {isSelected && (
                   <div className="absolute inset-0 border-1 sm:border-2 border-blue-500 rounded-lg sm:rounded-xl pointer-events-none"></div>
                 )}
@@ -667,7 +634,6 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
         </motion.div>
       </div>
 
-      {/* 캘린더 하단 범례 */}
       <div className="px-3 sm:px-6 py-2 sm:py-3 border-t border-gray-100">
         <p className="text-[9px] sm:text-xs text-gray-500 mb-1 sm:mb-2 font-medium">상태 표시</p>
         <div className="flex flex-wrap gap-1.5 sm:gap-3">
