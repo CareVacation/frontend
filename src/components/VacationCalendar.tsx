@@ -19,6 +19,9 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
   const [isMonthChanging, setIsMonthChanging] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [showMonthError, setShowMonthError] = useState(false);
+  const [isButtonDisabled, setIsButtonDisabled] = useState(false);
+  
+  const BUTTON_DELAY = 750;
 
   const MAX_RETRY_COUNT = 3;
 
@@ -33,9 +36,33 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
     return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
   }, [calendarStart, calendarEnd]);
 
-  const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
-  const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
-  const currentMonth = () => setCurrentDate(new Date());
+  const disableButtonsTemporarily = () => {
+    setIsButtonDisabled(true);
+    setTimeout(() => {
+      setIsButtonDisabled(false);
+    }, BUTTON_DELAY);
+  };
+
+  const prevMonth = () => {
+    if (isButtonDisabled || isLoading) return;
+    
+    setCurrentDate(subMonths(currentDate, 1));
+    disableButtonsTemporarily();
+  };
+  
+  const nextMonth = () => {
+    if (isButtonDisabled || isLoading) return;
+    
+    setCurrentDate(addMonths(currentDate, 1));
+    disableButtonsTemporarily();
+  };
+  
+  const currentMonth = () => {
+    if (isButtonDisabled || isLoading) return;
+    
+    setCurrentDate(new Date());
+    disableButtonsTemporarily();
+  };
 
   const fetchCalendarData = async () => {
     if (retryCount >= MAX_RETRY_COUNT) {
@@ -490,28 +517,48 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
           <div className="flex space-x-0.5 sm:space-x-2">
             <button 
               onClick={prevMonth}
-              className="p-1 sm:p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-600"
+              disabled={isButtonDisabled || isLoading}
+              className={`p-1 sm:p-2 rounded-lg transition-all duration-300 ${
+                isButtonDisabled || isLoading 
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-50' 
+                  : 'hover:bg-gray-100 text-gray-600'
+              }`}
               aria-label="이전 달"
             >
               <FiChevronLeft size={14} className="sm:w-5 sm:h-5" />
             </button>
             <button 
               onClick={currentMonth}
-              className="p-1 sm:p-2 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors text-blue-600"
+              disabled={isButtonDisabled || isLoading}
+              className={`p-1 sm:p-2 rounded-lg transition-all duration-300 ${
+                isButtonDisabled || isLoading
+                  ? 'bg-blue-50 text-blue-300 cursor-not-allowed opacity-50'
+                  : 'bg-blue-50 hover:bg-blue-100 text-blue-600'
+              }`}
               aria-label="이번 달로 돌아가기"
             >
               <FiCalendar size={12} className="sm:w-[18px] sm:h-[18px]" />
             </button>
             <button 
               onClick={nextMonth}
-              className="p-1 sm:p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-600"
+              disabled={isButtonDisabled || isLoading}
+              className={`p-1 sm:p-2 rounded-lg transition-all duration-300 ${
+                isButtonDisabled || isLoading
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-50'
+                  : 'hover:bg-gray-100 text-gray-600'
+              }`}
               aria-label="다음 달"
             >
               <FiChevronRight size={14} className="sm:w-5 sm:h-5" />
             </button>
             <button
               onClick={handleRefresh}
-              className="p-1 sm:p-2 rounded-lg bg-green-50 hover:bg-green-100 transition-colors text-green-600"
+              disabled={isLoading}
+              className={`p-1 sm:p-2 rounded-lg transition-all duration-300 ${
+                isLoading
+                  ? 'bg-green-50 text-green-300 cursor-not-allowed'
+                  : 'bg-green-50 hover:bg-green-100 text-green-600'
+              }`}
               aria-label="데이터 새로고침"
             >
               <FiRefreshCw size={12} className={`${isLoading ? 'animate-spin' : ''}`} />
