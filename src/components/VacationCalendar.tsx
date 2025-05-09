@@ -85,6 +85,25 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
         return;
       }
       
+      if (apiData && apiData.dates) {
+        const responseDateKeys = Object.keys(apiData.dates);
+        if (responseDateKeys.length > 0) {
+          const firstDateMonth = responseDateKeys[0].substring(5, 7);
+          const requestedMonthString = format(monthStart, 'MM');
+          
+          if (firstDateMonth !== requestedMonthString) {
+            console.error(`응답 데이터 월 불일치! 요청: ${requestedMonthString}월, 응답: ${firstDateMonth}월`);
+            console.log('잘못된 월 데이터 응답. 무시하고 재시도합니다.');
+            
+            setTimeout(() => {
+              setIsMonthChanging(false);
+              fetchCalendarData();
+            }, 500);
+            return;
+          }
+        }
+      }
+      
       console.log('API 응답 데이터 수신:', apiData);
       
       const formattedData: VacationData = {};
