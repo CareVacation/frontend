@@ -9,6 +9,7 @@ import { DayInfo, VacationRequest, VacationLimit } from '@/types/vacation';
 import { getVacationsForMonth, getVacationsForDate, getVacationLimitsForMonth, getVacationLimitForDate, setVacationLimit } from '@/lib/vacationService';
 import { AnimatePresence, motion } from 'framer-motion';
 import VacationCalendar from '@/components/VacationCalendar';
+import AdminPanel from '@/components/AdminPanel';
 
 export default function Home() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -222,9 +223,9 @@ export default function Home() {
     document.body.style.overflow = '';
   };
 
-  const handleLimitSet = async (date: Date, maxPeople: number) => {
+  const handleLimitSet = async (date: Date, maxPeople: number, role: 'caregiver' | 'office') => {
     try {
-      await setVacationLimit(date, maxPeople);
+      await setVacationLimit(date, maxPeople, role);
       await fetchMonthData();
       showNotification('휴무 제한 인원이 설정되었습니다.', 'success');
     } catch (error) {
@@ -329,6 +330,22 @@ export default function Home() {
           >
             {notification.message}
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* AdminPanel */}
+      <AnimatePresence>
+        {showAdminPanel && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-2 sm:p-4 bg-opacity-50">
+            <AdminPanel
+              currentDate={currentDate}
+              onClose={handleCloseAdminPanel}
+              onUpdateSuccess={fetchMonthData}
+              vacationLimits={vacationLimits}
+              onLimitSet={handleLimitSet}
+              vacationDays={vacationDays}
+            />
+          </div>
         )}
       </AnimatePresence>
     </main>
