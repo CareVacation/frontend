@@ -10,12 +10,25 @@ import { MdStar } from 'react-icons/md';
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
-const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrentDate: (date: Date | SetStateAction<Date>) => void }> = ({ onDateSelect, onRequestSelect, isAdmin = false, maxPeopleAllowed = 5, currentDate, setCurrentDate }) => {
+interface VacationCalendarProps extends CalendarProps {
+  currentDate: Date;
+  setCurrentDate: (date: Date | SetStateAction<Date>) => void;
+  roleFilter?: 'all' | 'caregiver' | 'office';
+}
+
+const VacationCalendar: React.FC<VacationCalendarProps> = ({
+  onDateSelect,
+  onRequestSelect,
+  isAdmin = false,
+  maxPeopleAllowed = 5,
+  currentDate,
+  setCurrentDate,
+  roleFilter = 'all',
+}) => {
   const [calendarData, setCalendarData] = useState<VacationData>({});
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'caregiver' | 'office'>('all');
   const [isMonthChanging, setIsMonthChanging] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [showMonthError, setShowMonthError] = useState(false);
@@ -49,7 +62,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
       if (dateData && dateData.vacations && dateData.vacations.length > 0) {
         // 필터에 맞는 휴가만 로깅
         const filteredVacations = dateData.vacations.filter(v => {
-          return activeFilter === 'all' || v.role === activeFilter || v.role === 'all';
+          return roleFilter === 'all' || v.role === roleFilter || v.role === 'all';
         });
         
         if (filteredVacations.length > 0) {
@@ -60,7 +73,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
         }
       }
     });
-  }, [calendarData, activeFilter]);
+  }, [calendarData, roleFilter]);
   
   const abortControllerRef = React.useRef<AbortController | null>(null);
   const currentRequestIdRef = React.useRef<string | null>(null);
@@ -102,7 +115,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
       console.log(`요청 월: ${requestMonth}`);
       console.log(`요청 날짜 범위: ${startDateStr} ~ ${endDateStr}`);
 
-      const url = `/api/vacation/calendar?startDate=${startDateStr}&endDate=${endDateStr}&roleFilter=${activeFilter}&_t=${Date.now()}&_r=${requestId}&_retry=${retry}`;
+      const url = `/api/vacation/calendar?startDate=${startDateStr}&endDate=${endDateStr}&roleFilter=${roleFilter}&_t=${Date.now()}&_r=${requestId}&_retry=${retry}`;
       console.log(`캘린더 API 요청 URL: ${url}`);
       
       const response = await fetch(url, {
@@ -227,7 +240,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
         setIsMonthChanging(false);
       }
     }
-  }, [activeFilter, MAX_RETRY_COUNT, MAX_RETRY_DELAY]);
+  }, [roleFilter, MAX_RETRY_COUNT, MAX_RETRY_DELAY]);
 
   const fetchSelectedDateData = async (date: Date) => {
     try {
@@ -397,9 +410,9 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
 
   // 필터 변경시 데이터 로드
   useEffect(() => {
-    console.log(`필터 변경됨: ${activeFilter} - 데이터 로드`);
+    console.log(`필터 변경됨: ${roleFilter} - 데이터 로드`);
     fetchCalendarData(currentDate);
-  }, [activeFilter, fetchCalendarData, currentDate]);
+  }, [roleFilter, fetchCalendarData, currentDate]);
 
   useEffect(() => {
     setRetryCount(0);
@@ -438,7 +451,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
     }
 
     // 전체 필터일 때는 무색, 단 오늘 날짜는 파란색
-    if (activeFilter === 'all') {
+    if (roleFilter === 'all') {
       if (isToday(date)) {
         return {
           bg: 'bg-blue-50',
@@ -514,8 +527,8 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
     
     vacations = vacations.filter(vacation => vacation.status !== 'rejected');
     
-    if (activeFilter !== 'all') {
-      vacations = vacations.filter(vacation => vacation.role === activeFilter);
+    if (roleFilter !== 'all') {
+      vacations = vacations.filter(vacation => vacation.role === roleFilter);
     }
     
     if (vacations.length > 0) {
@@ -633,41 +646,6 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
           </div>
         </div>
 
-        <div className="flex justify-center mb-3 sm:mb-5">
-          <div className="inline-flex bg-gray-100 p-1 rounded-lg shadow-sm">
-            <button
-              onClick={() => setActiveFilter('all')}
-              className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all flex items-center gap-1
-                ${activeFilter === 'all' 
-                  ? 'bg-purple-600 text-white shadow-sm ring-2 ring-purple-300' 
-                  : 'text-black hover:bg-gray-200'}`}
-            >
-              <FiUsers className="w-3 h-3 sm:w-4 sm:h-4" />
-              전체
-            </button>
-            <button
-              onClick={() => setActiveFilter('caregiver')}
-              className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all flex items-center gap-1
-                ${activeFilter === 'caregiver' 
-                  ? 'bg-cyan-600 text-white shadow-sm ring-2 ring-cyan-300' 
-                  : 'text-black hover:bg-gray-200'}`}
-            >
-              <FiUser className="w-3 h-3 sm:w-4 sm:h-4" />
-              요양보호사
-            </button>
-            <button
-              onClick={() => setActiveFilter('office')}
-              className={`px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md transition-all flex items-center gap-1
-                ${activeFilter === 'office' 
-                  ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-300' 
-                  : 'text-black hover:bg-gray-200'}`}
-            >
-              <FiBriefcase className="w-3 h-3 sm:w-4 sm:h-4" />
-              사무실
-            </button>
-          </div>
-        </div>
-        
         <div className="grid grid-cols-7 border-b border-gray-200">
           {WEEKDAYS.map((day, index) => (
             <div 
@@ -733,7 +711,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
                     )}
                   </div>
                   
-                  {isCurrentMonth && activeFilter !== 'all' && (
+                  {isCurrentMonth && roleFilter !== 'all' && (
                     <span className={`
                       text-[6px] sm:text-xs font-medium px-0.5 sm:px-1.5 py-0 sm:py-0.5 rounded-full inline-flex items-center
                       ${
@@ -783,7 +761,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
                   </div>
                 )}
                 
-                {isCurrentMonth && activeFilter !== 'all' && (
+                {isCurrentMonth && roleFilter !== 'all' && (
                   <div className="absolute bottom-0 sm:bottom-1 right-0 sm:right-1.5">
                     {vacationersCount >= maxPeople ? (
                       <div className="text-[6px] sm:text-xs bg-red-500 text-white rounded-full w-2 h-2 sm:w-4 sm:h-4 flex items-center justify-center">

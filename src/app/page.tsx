@@ -24,6 +24,7 @@ export default function Home() {
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
   const [vacationLimits, setVacationLimits] = useState<Record<string, VacationLimit>>({});
   const [isUpdated, setIsUpdated] = useState(false);
+  const [roleFilter, setRoleFilter] = useState<'all' | 'caregiver' | 'office'>('all');
 
   // 초기 데이터 로드 및 월 변경시 데이터 갱신
   useEffect(() => {
@@ -98,15 +99,8 @@ export default function Home() {
 
   const fetchDateDetails = async (date: Date) => {
     try {
-      // 선택한 날짜에 대한 상세 정보를 가져오는 API 호출
       const formattedDate = format(date, 'yyyy-MM-dd');
-      console.log('날짜 상세 정보 조회:', formattedDate);
-      
-      // API URL을 상대 경로로 설정하여 현재 호스트/포트를 자동으로 사용
       const apiUrl = `/api/vacation/date/${formattedDate}`;
-      console.log('API 요청 URL:', apiUrl);
-      
-      // Axios 대신 fetch API 사용 (네이티브 함수)
       const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
@@ -114,40 +108,25 @@ export default function Home() {
           'Cache-Control': 'no-cache'
         }
       });
-      
       if (!response.ok) {
         throw new Error(`API 응답 오류: ${response.status} ${response.statusText}`);
       }
-      
       const data = await response.json();
-      console.log('날짜 상세 데이터:', data);
-      
-      // 응답 데이터 확인 및 처리
       let vacations = [];
       if (data && Array.isArray(data.vacations)) {
         vacations = data.vacations;
       } else if (data && typeof data === 'object') {
-        // 다른 형태의 응답 처리
         if (Array.isArray(data)) {
           vacations = data;
         } else {
           vacations = data.vacations || [];
         }
       }
-      
-      console.log('가져온 휴무 목록:', vacations);
-      setDateVacations(vacations);
+      // 역할별로 필터링
+      const filtered = roleFilter === 'all' ? vacations : vacations.filter((v: VacationRequest) => v.role === roleFilter);
+      setDateVacations(filtered);
     } catch (error) {
-      console.error('상세 정보 가져오기 오류:', error);
-      
-      // 자세한 에러 정보 로깅
-      if (error instanceof Error) {
-        console.error('에러 메시지:', error.message);
-        console.error('에러 스택:', error.stack);
-      }
-      
       setDateVacations([]);
-      // 에러 발생 시 알림 표시
       showNotification('네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.', 'error');
     } finally {
       setIsLoading(false);
@@ -255,7 +234,12 @@ export default function Home() {
           <h1 className="text-2xl sm:text-4xl font-bold text-blue-700 mb-1 sm:mb-2">휴무 관리 시스템</h1>
           <p className="text-xs sm:text-base text-gray-600">팀원들의 휴무 일정을 한눈에 확인하고 관리하세요.</p>
         </header>
-        
+        {/* 역할 필터 탭 UI */}
+        <div className="flex justify-center gap-2 mb-4">
+          <button onClick={() => setRoleFilter('all')} className={`px-4 py-2 rounded-full text-sm font-semibold border ${roleFilter === 'all' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-700 border-gray-300'}`}>전체</button>
+          <button onClick={() => setRoleFilter('caregiver')} className={`px-4 py-2 rounded-full text-sm font-semibold border ${roleFilter === 'caregiver' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300'}`}>요양보호사</button>
+          <button onClick={() => setRoleFilter('office')} className={`px-4 py-2 rounded-full text-sm font-semibold border ${roleFilter === 'office' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-300'}`}>사무실</button>
+        </div>
         <div className="max-w-5xl mx-auto">
           <VacationCalendar
             onDateSelect={handleDateSelect}
@@ -264,6 +248,7 @@ export default function Home() {
             maxPeopleAllowed={5}
             currentDate={currentDate}
             setCurrentDate={setCurrentDate}
+            roleFilter={roleFilter}
           />
         </div>
       </div>
@@ -286,6 +271,7 @@ export default function Home() {
                 })()
               }
               onVacationUpdated={handleVacationUpdated}
+              roleFilter={roleFilter}
             />
           </div>
         )}
@@ -311,6 +297,7 @@ export default function Home() {
                 onCancel={handleCloseVacationForm}
                 isSubmitting={isSubmitting}
                 setIsSubmitting={setIsSubmitting}
+                roleFilter={roleFilter}
               />
             </motion.div>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { motion } from 'framer-motion';
@@ -10,16 +10,23 @@ const VacationForm: React.FC<VacationFormProps> = ({
   onSubmitSuccess,
   onCancel,
   isSubmitting,
-  setIsSubmitting
+  setIsSubmitting,
+  roleFilter
 }) => {
   const [userName, setUserName] = useState('');
   const [reason, setReason] = useState('');
   const [type, setType] = useState<'regular' | 'mandatory'>('regular');
-  const [role, setRole] = useState<'caregiver' | 'office' | 'all'>('caregiver');
+  const [role, setRole] = useState<'caregiver' | 'office' | 'all'>(roleFilter && roleFilter !== 'all' ? roleFilter : 'caregiver');
   const [errors, setErrors] = useState({
     userName: '',
     reason: ''
   });
+
+  useEffect(() => {
+    if (roleFilter && roleFilter !== 'all') {
+      setRole(roleFilter);
+    }
+  }, [roleFilter]);
 
   const validate = (): boolean => {
     const newErrors = {
@@ -200,7 +207,7 @@ const VacationForm: React.FC<VacationFormProps> = ({
                 checked={role === 'caregiver'}
                 onChange={() => setRole('caregiver')}
                 className="hidden"
-                disabled={isSubmitting}
+                disabled={isSubmitting || (roleFilter && roleFilter !== 'all' && roleFilter !== 'caregiver')}
               />
               <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center mb-1 sm:mb-2 ${role === 'caregiver' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
                 <FiUser size={20} className="sm:w-5 sm:h-5" />
@@ -216,7 +223,7 @@ const VacationForm: React.FC<VacationFormProps> = ({
                 checked={role === 'office'}
                 onChange={() => setRole('office')}
                 className="hidden"
-                disabled={isSubmitting}
+                disabled={isSubmitting || (roleFilter && roleFilter !== 'all' && roleFilter !== 'office')}
               />
               <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center mb-1 sm:mb-2 ${role === 'office' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
                 <FiBriefcase size={20} className="sm:w-5 sm:h-5" />
@@ -232,7 +239,7 @@ const VacationForm: React.FC<VacationFormProps> = ({
                 checked={role === 'all'}
                 onChange={() => setRole('all')}
                 className="hidden"
-                disabled={isSubmitting}
+                disabled={isSubmitting || (roleFilter && roleFilter !== 'all')}
               />
               <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center mb-1 sm:mb-2 ${role === 'all' ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-500'}`}>
                 <FiUsers size={20} className="sm:w-5 sm:h-5" />

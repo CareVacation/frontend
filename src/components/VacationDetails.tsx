@@ -15,6 +15,7 @@ const VacationDetails: React.FC<VacationDetailsProps> = ({
   isLoading = false,
   maxPeople = 5,
   onVacationUpdated,
+  roleFilter,
 }) => {
   const [showForm, setShowForm] = useState(false);
   const [sortedVacations, setSortedVacations] = useState<VacationRequest[]>([]);
@@ -73,6 +74,7 @@ const VacationDetails: React.FC<VacationDetailsProps> = ({
             onCancel={handleFormCancel}
             isSubmitting={isSubmitting}
             setIsSubmitting={setIsSubmitting}
+            roleFilter={roleFilter}
           />
         ) : (
           <>

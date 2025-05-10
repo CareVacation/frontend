@@ -45,6 +45,7 @@ export interface VacationDetailsProps {
   onClose: () => void;
   onVacationUpdated: () => Promise<void>;
   maxPeople?: number;
+  roleFilter?: 'all' | 'caregiver' | 'office';
 }
 
 export interface VacationFormProps {
@@ -53,6 +54,7 @@ export interface VacationFormProps {
   onCancel: () => void;
   isSubmitting: boolean;
   setIsSubmitting: React.Dispatch<React.SetStateAction<boolean>>;
+  roleFilter?: 'all' | 'caregiver' | 'office';
 }
 
 export interface AdminPanelProps {
