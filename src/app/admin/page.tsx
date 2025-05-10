@@ -317,18 +317,16 @@ export default function AdminPage() {
     setShowLimitPanel(false);
   };
 
-  const handleLimitSet = async (date: Date, maxPeople: number) => {
+  const handleLimitSet = async (date: Date, maxPeople: number, role: 'caregiver' | 'office') => {
     try {
-      await setVacationLimit(date, maxPeople);
+      await setVacationLimit(date, maxPeople, role);
       // 제한 설정 후 데이터 즉시 갱신
       await fetchMonthData();
       // 선택된 날짜가 있다면 해당 날짜 데이터도 갱신
       if (selectedDate) {
         await fetchDateDetails(selectedDate);
-        
         // 전체 휴무 요청 목록도 갱신
         await fetchAllRequests();
-        
         // 현재 선택된 날짜에 대한 필터 다시 적용
         if (selectedDate) {
           const formattedDate = format(selectedDate, 'yyyy-MM-dd');

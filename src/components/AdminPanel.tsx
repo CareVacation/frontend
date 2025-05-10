@@ -9,7 +9,7 @@ interface AdminPanelProps {
   onClose: () => void;
   onUpdateSuccess: () => void | Promise<void>;
   vacationLimits?: Record<string, VacationLimit>;
-  onLimitSet?: (date: Date, maxPeople: number) => Promise<void>;
+  onLimitSet?: (date: Date, maxPeople: number, role: 'caregiver' | 'office') => Promise<void>;
   vacationDays?: Record<string, DayInfo>;
 }
 
@@ -117,6 +117,12 @@ const AdminPanel = ({ currentDate, onClose, onUpdateSuccess, vacationLimits, onL
       const saveLimits = limits.filter(l => l.role === 'caregiver' || l.role === 'office');
       console.log('[AdminPanel] 저장할 제한 데이터:', saveLimits);
       const timestamp = Date.now();
+      // 각 제한 항목별로 onLimitSet 호출 (role 포함)
+      if (onLimitSet) {
+        for (const limit of saveLimits) {
+          await onLimitSet(new Date(limit.date), limit.maxPeople, limit.role);
+        }
+      }
       const response = await fetch(`/api/vacation/limits?_t=${timestamp}`, {
         method: 'POST',
         headers: {
