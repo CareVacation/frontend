@@ -152,7 +152,7 @@ export async function getVacationLimitsForMonth(year: number, month: number) {
         dateMap.set(dateStr, {
           id: document.id,
           date: dateStr,
-          maxPeople: typeof data.maxPeople === 'number' ? data.maxPeople : parseInt(data.maxPeople, 10) || 3,
+          maxPeople: typeof data.maxPeople === 'number' ? data.maxPeople : (data.maxPeople !== undefined ? parseInt(data.maxPeople, 10) : 3),
           createdAt: data.createdAt
         });
       }
@@ -171,7 +171,7 @@ export async function getVacationLimitsForMonth(year: number, month: number) {
         dateMap.set(dateStr, {
           id: docId,
           date: dateStr,
-          maxPeople: typeof data.maxPeople === 'number' ? data.maxPeople : parseInt(data.maxPeople, 10) || 3,
+          maxPeople: typeof data.maxPeople === 'number' ? data.maxPeople : (data.maxPeople !== undefined ? parseInt(data.maxPeople, 10) : 3),
           createdAt: data.createdAt
         });
       }
@@ -211,7 +211,7 @@ export async function getVacationLimitForDate(date: Date): Promise<VacationLimit
       return {
         id: directDoc.id,
         date: data.date || formattedDate,
-        maxPeople: typeof data.maxPeople === 'number' ? data.maxPeople : parseInt(data.maxPeople, 10) || 3
+        maxPeople: typeof data.maxPeople === 'number' ? data.maxPeople : (data.maxPeople !== undefined ? parseInt(data.maxPeople, 10) : 3)
       };
     }
     
@@ -238,7 +238,7 @@ export async function getVacationLimitForDate(date: Date): Promise<VacationLimit
       return {
         id: doc.id,
         date: data.date,
-        maxPeople: typeof data.maxPeople === 'number' ? data.maxPeople : parseInt(data.maxPeople, 10) || 3
+        maxPeople: typeof data.maxPeople === 'number' ? data.maxPeople : (data.maxPeople !== undefined ? parseInt(data.maxPeople, 10) : 3)
       };
     }
     
@@ -498,7 +498,7 @@ export async function getVacationLimitsForMonthRange(startDateStr: string, endDa
         dateMap.set(dateStr, {
           id: document.id,
           date: dateStr,
-          maxPeople: typeof data.maxPeople === 'number' ? data.maxPeople : parseInt(data.maxPeople, 10) || 3
+          maxPeople: typeof data.maxPeople === 'number' ? data.maxPeople : (data.maxPeople !== undefined ? parseInt(data.maxPeople, 10) : 3)
         });
       }
     });
@@ -527,7 +527,7 @@ export async function getVacationLimitsForMonthRange(startDateStr: string, endDa
         dateMap.set(dateStr, {
           id: docId,
           date: dateStr,
-          maxPeople: typeof data.maxPeople === 'number' ? data.maxPeople : parseInt(data.maxPeople, 10) || 3
+          maxPeople: typeof data.maxPeople === 'number' ? data.maxPeople : (data.maxPeople !== undefined ? parseInt(data.maxPeople, 10) : 3)
         });
       }
     });

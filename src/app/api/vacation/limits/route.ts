@@ -79,6 +79,8 @@ export async function POST(request: NextRequest) {
     
     // 각 제한 항목을 저장
     for (const limit of limits) {
+      // id가 없으면 date를 id로 보정
+      const id = limit.id ?? limit.date;
       const { date, maxPeople } = limit;
       
       if (!date || maxPeople === undefined) {
@@ -87,8 +89,8 @@ export async function POST(request: NextRequest) {
       }
       
       try {
-        console.log(`[Limits API] 휴가 제한 저장: ${date}, 최대 ${maxPeople}명`);
-        const result = await setVacationLimit(date, maxPeople);
+        console.log(`[Limits API] 휴가 제한 저장: ${date}, 최대 ${maxPeople}명, id: ${id}`);
+        const result = await setVacationLimit(id, maxPeople);
         savedLimits.push(result);
         console.log(`[Limits API] 제한 저장 성공: ${date}`);
       } catch (err) {

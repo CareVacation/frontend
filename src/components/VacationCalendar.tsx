@@ -443,7 +443,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
     const filteredVacations = getDayVacations(date);
     const vacationersCount = filteredVacations.length;
     
-    const maxPeople = dayData?.maxPeople || 3;
+    const maxPeople = dayData?.maxPeople ?? 3;
     
     const isWeekend = date.getDay() === 0 || date.getDay() === 6;
     
@@ -693,7 +693,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
             const dayData = calendarData[dateKey];
             const vacations = getDayVacations(day);
             const vacationersCount = vacations.length;
-            const maxPeople = dayData?.maxPeople || 3;
+            const maxPeople = dayData?.maxPeople ?? 3;
             
             return (
               <motion.div
