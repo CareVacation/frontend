@@ -120,7 +120,6 @@ export async function getVacationLimitsForMonth(year: number, month: number) {
     console.log(`[VacationService] 휴가 제한 데이터 조회: ${year}년 ${month+1}월 (${startDateStr} ~ ${endDateStr})`);
     
     const limitsRef = collection(db, VACATION_LIMITS_COLLECTION);
-    // 캐시 방지를 위해 Firebase 쿼리 실행 시간 기록
     const queryStartTime = Date.now();
     
     const q = query(
@@ -129,64 +128,26 @@ export async function getVacationLimitsForMonth(year: number, month: number) {
       where('date', '<=', endDateStr)
     );
 
-    // 명시적으로 서버에서 최신 데이터 가져오기
     const querySnapshot = await getDocs(q);
-    
-    // 날짜를 키로 하는 맵 생성 (동일한 날짜에 여러 문서가 있을 경우 날짜 ID 문서 우선)
-    const dateMap = new Map<string, VacationLimit>();
-    
     console.log(`[VacationService] 휴가 제한 데이터 조회 완료: ${querySnapshot.size}건 (소요시간: ${Date.now() - queryStartTime}ms)`);
     
-    // 첫 번째 패스: 모든 문서 처리 (날짜 ID가 아닌 것도 포함)
+    // 모든 문서를 배열로 반환 (role별 분리)
+    const limits: VacationLimit[] = [];
     querySnapshot.forEach((document) => {
       const data = document.data();
       const dateStr = data.date;
-      
       if (!dateStr) {
         console.warn(`[VacationService] 날짜 필드가 없는 문서 발견: ID=${document.id}`);
-        return; // 날짜가 없는 문서는 건너뜀
+        return;
       }
-      
-      // 기본값: 모든 문서를 맵에 추가
-      if (!dateMap.has(dateStr)) {
-        dateMap.set(dateStr, {
-          id: document.id,
-          date: dateStr,
-          maxPeople: typeof data.maxPeople === 'number' ? data.maxPeople : (data.maxPeople !== undefined ? parseInt(data.maxPeople, 10) : 3),
-          createdAt: data.createdAt,
-          role: data.role ?? 'caregiver'
-        });
-      }
+      limits.push({
+        id: document.id,
+        date: dateStr,
+        maxPeople: typeof data.maxPeople === 'number' ? data.maxPeople : (data.maxPeople !== undefined ? parseInt(data.maxPeople, 10) : 3),
+        createdAt: data.createdAt,
+        role: data.role ?? 'caregiver'
+      });
     });
-    
-    // 두 번째 패스: 날짜 ID를 가진 문서로 맵 업데이트 (우선순위 부여)
-    querySnapshot.forEach((document) => {
-      const data = document.data();
-      const docId = document.id;
-      const dateStr = data.date;
-      
-      // docId가 날짜 형식(YYYY-MM-DD)인 경우 무조건 이 값을 사용
-      if (docId.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        console.log(`[VacationService] 날짜 ID 문서 발견: ${docId} (${data.maxPeople}명)`);
-        
-        dateMap.set(dateStr, {
-          id: docId,
-          date: dateStr,
-          maxPeople: typeof data.maxPeople === 'number' ? data.maxPeople : (data.maxPeople !== undefined ? parseInt(data.maxPeople, 10) : 3),
-          createdAt: data.createdAt,
-          role: data.role ?? 'caregiver'
-        });
-      }
-    });
-    
-    // 결과 변환
-    const limits = Array.from(dateMap.values());
-    
-    // 특정 날짜에 대한 로그 출력 (디버깅용)
-    limits.forEach(limit => {
-      console.log(`[VacationService] 최종 제한: 날짜=${limit.date}, ID=${limit.id}, 인원=${limit.maxPeople}`);
-    });
-    
     return limits;
   } catch (error) {
     console.error('월별 휴가 제한 데이터 조회 중 오류:', error);
