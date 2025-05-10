@@ -622,12 +622,19 @@ export default function AdminPage() {
                     </button>
                   </div>
                 </div>
+                {/* 역할 필터 탭 UI */}
+                <div className="flex justify-center gap-2 mb-4">
+                  <button onClick={() => setRoleFilter('all')} className={`px-4 py-2 rounded-full text-sm font-semibold border ${roleFilter === 'all' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-700 border-gray-300'}`}>전체</button>
+                  <button onClick={() => setRoleFilter('caregiver')} className={`px-4 py-2 rounded-full text-sm font-semibold border ${roleFilter === 'caregiver' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300'}`}>요양보호사</button>
+                  <button onClick={() => setRoleFilter('office')} className={`px-4 py-2 rounded-full text-sm font-semibold border ${roleFilter === 'office' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-300'}`}>사무실</button>
+                </div>
                 <VacationCalendar
                   onDateSelect={handleDateSelect}
                   isAdmin={true}
                   maxPeopleAllowed={5}
                   currentDate={currentDate}
                   setCurrentDate={setCurrentDate}
+                  roleFilter={roleFilter}
                 />
               </div>
             </div>
