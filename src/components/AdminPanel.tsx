@@ -42,6 +42,8 @@ const AdminPanel = ({ currentDate, onClose, onUpdateSuccess, vacationLimits, onL
       
       const data = await response.json();
       
+      // API 응답 확인 로그 추가
+      console.log('[AdminPanel] API 응답 limits:', data.limits);
       // 날짜별로 데이터 정리
       const existingLimits = data.limits || [];
       const allLimits: VacationLimit[] = [];
@@ -50,20 +52,42 @@ const AdminPanel = ({ currentDate, onClose, onUpdateSuccess, vacationLimits, onL
       while (currentDay <= monthEnd) {
         const dateStr = format(currentDay, 'yyyy-MM-dd');
         // 요양보호사
-        const caregiverLimit = existingLimits.find((limit: VacationLimit) => limit.date === dateStr && limit.role === 'caregiver');
+        const caregiverLimit =
+          existingLimits.find(
+            (limit: VacationLimit) =>
+              limit.date === dateStr &&
+              limit.role === 'caregiver' &&
+              limit.id === `${dateStr}_caregiver`
+          ) ||
+          existingLimits.find(
+            (limit: VacationLimit) =>
+              limit.date === dateStr &&
+              limit.role === 'caregiver'
+          );
         allLimits.push({
           id: caregiverLimit?.id,
           date: dateStr,
-          maxPeople: caregiverLimit?.maxPeople ?? 3,
+          maxPeople: caregiverLimit?.maxPeople !== undefined ? caregiverLimit.maxPeople : 3,
           createdAt: caregiverLimit?.createdAt,
           role: 'caregiver',
         });
         // 사무실
-        const officeLimit = existingLimits.find((limit: VacationLimit) => limit.date === dateStr && limit.role === 'office');
+        const officeLimit =
+          existingLimits.find(
+            (limit: VacationLimit) =>
+              limit.date === dateStr &&
+              limit.role === 'office' &&
+              limit.id === `${dateStr}_office`
+          ) ||
+          existingLimits.find(
+            (limit: VacationLimit) =>
+              limit.date === dateStr &&
+              limit.role === 'office'
+          );
         allLimits.push({
           id: officeLimit?.id,
           date: dateStr,
-          maxPeople: officeLimit?.maxPeople ?? 3,
+          maxPeople: officeLimit?.maxPeople !== undefined ? officeLimit.maxPeople : 3,
           createdAt: officeLimit?.createdAt,
           role: 'office',
         });
