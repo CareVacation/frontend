@@ -16,6 +16,7 @@ interface AdminPanelProps {
 const AdminPanel = ({ currentDate, onClose, onUpdateSuccess, vacationLimits, onLimitSet }: AdminPanelProps) => {
   const [panelDate, setPanelDate] = useState(currentDate);
   const [limits, setLimits] = useState<VacationLimit[]>([]);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'caregiver' | 'office'>('all');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -48,18 +49,26 @@ const AdminPanel = ({ currentDate, onClose, onUpdateSuccess, vacationLimits, onL
       let currentDay = monthStart;
       while (currentDay <= monthEnd) {
         const dateStr = format(currentDay, 'yyyy-MM-dd');
-        const existingLimit = existingLimits.find((limit: VacationLimit) => limit.date === dateStr);
-        
+        // 요양보호사
+        const caregiverLimit = existingLimits.find((limit: VacationLimit) => limit.date === dateStr && limit.role === 'caregiver');
         allLimits.push({
-          id: existingLimit?.id,
+          id: caregiverLimit?.id,
           date: dateStr,
-          maxPeople: existingLimit?.maxPeople || 3,
-          createdAt: existingLimit?.createdAt
+          maxPeople: caregiverLimit?.maxPeople ?? 3,
+          createdAt: caregiverLimit?.createdAt,
+          role: 'caregiver',
         });
-        
+        // 사무실
+        const officeLimit = existingLimits.find((limit: VacationLimit) => limit.date === dateStr && limit.role === 'office');
+        allLimits.push({
+          id: officeLimit?.id,
+          date: dateStr,
+          maxPeople: officeLimit?.maxPeople ?? 3,
+          createdAt: officeLimit?.createdAt,
+          role: 'office',
+        });
         currentDay = addDays(currentDay, 1);
       }
-      
       setLimits(allLimits);
     } catch (err) {
       console.error('휴가 제한 조회 오류:', err);
@@ -67,25 +76,22 @@ const AdminPanel = ({ currentDate, onClose, onUpdateSuccess, vacationLimits, onL
     }
   };
 
-  const handleUpdateLimit = (index: number, value: number) => {
+  const handleUpdateLimit = (date: string, role: 'caregiver' | 'office', value: number) => {
+    const idx = limits.findIndex(l => l.date === date && l.role === role);
+    if (idx === -1) return;
     const newLimits = [...limits];
-    newLimits[index] = { ...newLimits[index], maxPeople: value };
+    newLimits[idx] = { ...newLimits[idx], maxPeople: value };
     setLimits(newLimits);
   };
 
   const saveChanges = async () => {
     try {
-      // 로딩 상태 설정 (두 상태 변수 모두 true로 설정)
       setIsSaving(true);
       setIsSubmitting(true);
       setError('');
-      
-      console.log('[AdminPanel] 휴가 제한 저장 시작');
-      
-      // 현재 설정된 제한 정보 사용
-      console.log('[AdminPanel] 저장할 제한 데이터:', limits);
-      
-      // API 호출 시 타임스탬프 추가하여 캐시 방지
+      // 저장할 데이터에서 role이 'all'인 것은 제외
+      const saveLimits = limits.filter(l => l.role === 'caregiver' || l.role === 'office');
+      console.log('[AdminPanel] 저장할 제한 데이터:', saveLimits);
       const timestamp = Date.now();
       const response = await fetch(`/api/vacation/limits?_t=${timestamp}`, {
         method: 'POST',
@@ -95,8 +101,8 @@ const AdminPanel = ({ currentDate, onClose, onUpdateSuccess, vacationLimits, onL
           'Pragma': 'no-cache'
         },
         body: JSON.stringify({ 
-          limits,
-          timestamp // 요청 본문에도 타임스탬프 추가 
+          limits: saveLimits,
+          timestamp
         })
       });
       
@@ -202,17 +208,52 @@ const AdminPanel = ({ currentDate, onClose, onUpdateSuccess, vacationLimits, onL
         </div>
       )}
       
+      <div className="flex justify-center mb-6">
+        <div className="inline-flex bg-gray-100 p-1 rounded-lg shadow-sm">
+          <button
+            onClick={() => setActiveFilter('all')}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1
+              ${activeFilter === 'all' 
+                ? 'bg-purple-600 text-white shadow-sm ring-2 ring-purple-300' 
+                : 'text-black hover:bg-gray-200'}`}
+          >
+            전체
+          </button>
+          <button
+            onClick={() => setActiveFilter('caregiver')}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1
+              ${activeFilter === 'caregiver' 
+                ? 'bg-cyan-600 text-white shadow-sm ring-2 ring-cyan-300' 
+                : 'text-black hover:bg-gray-200'}`}
+          >
+            요양보호사
+          </button>
+          <button
+            onClick={() => setActiveFilter('office')}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all flex items-center gap-1
+              ${activeFilter === 'office' 
+                ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-300' 
+                : 'text-black hover:bg-gray-200'}`}
+          >
+            사무실
+          </button>
+        </div>
+      </div>
+      
       <div className="overflow-y-auto max-h-[60vh] mb-6">
+        {activeFilter === 'all' ? (
+          <div className="text-center text-gray-500 py-8">카테고리를 선택하면 해당 카테고리별 휴가 제한을 설정할 수 있습니다.<br/>각 날짜별로 요양보호사/사무실 인원을 따로 입력할 수 있습니다.</div>
+        ) : (
         <table className="w-full border-collapse border border-gray-300 shadow-sm">
           <thead className="bg-blue-600 text-white sticky top-0">
             <tr>
               <th className="p-3 border border-blue-700 text-left">날짜</th>
-              <th className="p-3 border border-blue-700 text-left">최대 인원</th>
+              <th className="p-3 border border-blue-700 text-left">{activeFilter === 'caregiver' ? '요양보호사 최대 인원' : '사무실 최대 인원'}</th>
             </tr>
           </thead>
           <tbody>
-            {limits.map((limit, index) => (
-              <tr key={limit.date} className={index % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-blue-50 hover:bg-blue-100'}>
+            {limits.filter(l => l.role === activeFilter).map((limit, index) => (
+              <tr key={limit.date + limit.role} className={index % 2 === 0 ? 'bg-white hover:bg-blue-50' : 'bg-blue-50 hover:bg-blue-100'}>
                 <td className="p-3 border border-gray-300">
                   <span className="text-black font-medium">{format(new Date(limit.date), 'yyyy-MM-dd (EEE)', { locale: ko })}</span>
                 </td>
@@ -221,7 +262,8 @@ const AdminPanel = ({ currentDate, onClose, onUpdateSuccess, vacationLimits, onL
                     type="number"
                     min="0"
                     value={limit.maxPeople}
-                    onChange={(e) => handleUpdateLimit(index, parseInt(e.target.value) || 0)}
+                    placeholder={activeFilter === 'caregiver' ? '요양보호사 인원' : '사무실 인원'}
+                    onChange={(e) => handleUpdateLimit(limit.date, limit.role, parseInt(e.target.value) || 0)}
                     className="w-full p-2 border rounded text-black font-medium focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                     disabled={isSaving || isSubmitting}
                   />
@@ -230,6 +272,7 @@ const AdminPanel = ({ currentDate, onClose, onUpdateSuccess, vacationLimits, onL
             ))}
           </tbody>
         </table>
+        )}
       </div>
       
       <div className="mt-6 flex justify-end space-x-4">

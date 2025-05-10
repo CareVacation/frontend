@@ -79,9 +79,9 @@ export async function POST(request: NextRequest) {
     
     // 각 제한 항목을 저장
     for (const limit of limits) {
-      // id가 없으면 date를 id로 보정
-      const id = limit.id ?? limit.date;
-      const { date, maxPeople } = limit;
+      // id가 없으면 date+role을 id로 보정
+      const id = limit.id ?? `${limit.date}_${limit.role ?? 'caregiver'}`;
+      const { date, maxPeople, role } = limit;
       
       if (!date || maxPeople === undefined) {
         console.warn(`[Limits API] 잘못된 데이터 항목 건너뜀:`, limit);
@@ -89,12 +89,12 @@ export async function POST(request: NextRequest) {
       }
       
       try {
-        console.log(`[Limits API] 휴가 제한 저장: ${date}, 최대 ${maxPeople}명, id: ${id}`);
-        const result = await setVacationLimit(id, maxPeople);
+        console.log(`[Limits API] 휴가 제한 저장: ${date}, 최대 ${maxPeople}명, id: ${id}, role: ${role}`);
+        const result = await setVacationLimit(date, maxPeople, role ?? 'caregiver');
         savedLimits.push(result);
-        console.log(`[Limits API] 제한 저장 성공: ${date}`);
+        console.log(`[Limits API] 제한 저장 성공: ${date}, role: ${role}`);
       } catch (err) {
-        console.error(`[Limits API] 제한 항목 저장 중 오류(계속 진행): ${date}`, err);
+        console.error(`[Limits API] 제한 항목 저장 중 오류(계속 진행): ${date}, role: ${role}`, err);
       }
     }
     

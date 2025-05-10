@@ -15,6 +15,7 @@ export interface VacationLimit {
   id?: string;
   date: string; // yyyy-MM-dd 형식
   maxPeople: number;
+  role: 'caregiver' | 'office'; // 카테고리별 제한 추가
   createdAt?: string;
 }
 

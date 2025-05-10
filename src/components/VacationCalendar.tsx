@@ -437,16 +437,30 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
       };
     }
 
+    // 전체 필터일 때는 무색, 단 오늘 날짜는 파란색
+    if (activeFilter === 'all') {
+      if (isToday(date)) {
+        return {
+          bg: 'bg-blue-50',
+          text: 'text-blue-700',
+          border: 'border-blue-400',
+          today: true
+        };
+      }
+      return {
+        bg: 'bg-transparent',
+        text: 'text-black',
+        border: 'border-transparent'
+      };
+    }
+
     const dateKey = format(date, 'yyyy-MM-dd');
     const dayData = calendarData[dateKey];
-    
     const filteredVacations = getDayVacations(date);
     const vacationersCount = filteredVacations.length;
-    
     const maxPeople = dayData?.maxPeople ?? 3;
-    
     const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-    
+
     if (isToday(date)) {
       return {
         bg: 'bg-blue-50',
@@ -455,7 +469,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
         today: true
       };
     }
-    
+
     if (vacationersCount < maxPeople) {
       return {
         bg: 'bg-green-100 hover:bg-green-200',
@@ -719,7 +733,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
                     )}
                   </div>
                   
-                  {isCurrentMonth && (
+                  {isCurrentMonth && activeFilter !== 'all' && (
                     <span className={`
                       text-[6px] sm:text-xs font-medium px-0.5 sm:px-1.5 py-0 sm:py-0.5 rounded-full inline-flex items-center
                       ${
@@ -769,7 +783,7 @@ const VacationCalendar: React.FC<CalendarProps & { currentDate: Date; setCurrent
                   </div>
                 )}
                 
-                {isCurrentMonth && (
+                {isCurrentMonth && activeFilter !== 'all' && (
                   <div className="absolute bottom-0 sm:bottom-1 right-0 sm:right-1.5">
                     {vacationersCount >= maxPeople ? (
                       <div className="text-[6px] sm:text-xs bg-red-500 text-white rounded-full w-2 h-2 sm:w-4 sm:h-4 flex items-center justify-center">

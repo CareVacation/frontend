@@ -114,21 +114,17 @@ export async function GET(request: NextRequest) {
       
       // 휴가 제한 정보 적용
       limits.forEach(limit => {
+        if (roleFilter !== 'all' && limit.role !== roleFilter) return; // role별로 분리 적용
         const dateKey = limit.date;
-        
         if (!dateKey) {
           console.warn(`[API] 날짜 필드가 없는 제한 발견: ID=${limit.id}`);
           return; // 날짜가 없는 제한은 건너뜀
         }
-        
-        // 요청된 날짜 범위 내에 있는지 검증
         if (dateKey < startDate || dateKey > endDate) {
           console.warn(`[API] 범위 밖의 제한 무시: ${dateKey}, ID=${limit.id}`);
           return; // 범위 밖의 데이터 제외
         }
-        
         if (!dateMap.has(dateKey)) {
-          // 해당 날짜에 대한 기본 구조 생성
           dateMap.set(dateKey, {
             date: dateKey,
             vacations: [],
@@ -136,7 +132,6 @@ export async function GET(request: NextRequest) {
             maxPeople: limit.maxPeople
           });
         } else {
-          // 이미 있는 날짜 데이터에 maxPeople 정보만 추가/갱신
           dateMap.get(dateKey).maxPeople = limit.maxPeople;
         }
       });
