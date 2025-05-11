@@ -218,7 +218,7 @@ export default function AdminPage() {
         }
       }
       // roleFilter에 따라 한 번 더 필터링
-      const filtered = roleFilter === 'all' ? vacations : vacations.filter((v: any) => v.role === roleFilter);
+      const filtered = roleFilter === 'all' ? vacations : vacations.filter((v: VacationRequest) => v.role === roleFilter);
       setDateVacations(filtered);
       
       let dateRequests = data.vacations || [];

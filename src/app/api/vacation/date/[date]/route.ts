@@ -17,11 +17,11 @@ export async function OPTIONS() {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { date: string } }
+  { params }: { params: Promise<{ date: string }> }
 ) {
   try {
     // URL에서 날짜 파라미터 추출
-    const dateParam = params.date;
+    const { date: dateParam } = await params;
     // role 파라미터 추출 (없으면 caregiver)
     const roleParam = request.nextUrl.searchParams.get('role');
     const role = (roleParam === 'all' || roleParam === 'caregiver' || roleParam === 'office') 
