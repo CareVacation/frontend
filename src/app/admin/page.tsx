@@ -109,7 +109,7 @@ export default function AdminPage() {
       // 휴무 제한 데이터 처리
       const limitsMap: Record<string, VacationLimit> = {};
       limits.forEach(limit => {
-        limitsMap[limit.date] = limit;
+        limitsMap[`${limit.date}_${limit.role}`] = limit;
       });
       setVacationLimits(limitsMap);
       
@@ -136,7 +136,9 @@ export default function AdminPage() {
       
       // 휴무 제한 상태 업데이트
       Object.keys(days).forEach(date => {
-        const limit = limitsMap[date] || { maxPeople: 3 }; // 기본값: 3명
+        // roleFilter에 맞는 제한값만 적용
+        const key = `${date}_${roleFilter}`;
+        const limit = roleFilter !== 'all' ? (limitsMap[key] || { maxPeople: 3 }) : { maxPeople: 3 };
         const currentCount = days[date].count;
         
         days[date].limit = limit.maxPeople;
@@ -184,24 +186,26 @@ export default function AdminPage() {
     }
   };
 
+  // 날짜별 상세 데이터 조회 (role별로 필터)
   const fetchDateDetails = async (date: Date) => {
     try {
       const formattedDate = format(date, 'yyyy-MM-dd');
-      
-      // fetch API로 변경
-      const response = await fetch(`/api/vacation/date/${formattedDate}`, {
+      // roleFilter를 쿼리스트링에 포함
+      const apiUrl = `/api/vacation/date/${formattedDate}?role=${roleFilter}`;
+      const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Cache-Control': 'no-cache'
         }
       });
-      
       if (!response.ok) {
         throw new Error(`API 응답 오류: ${response.status} ${response.statusText}`);
       }
-      
       const data = await response.json();
+      
+      // API 응답의 maxPeople 값 로깅
+      console.log(`날짜 ${formattedDate} API 응답 maxPeople(${roleFilter}): ${data.maxPeople}`);
       
       let vacations = [];
       if (data && Array.isArray(data.vacations)) {
@@ -213,9 +217,27 @@ export default function AdminPage() {
           vacations = data.vacations || [];
         }
       }
+      // roleFilter에 따라 한 번 더 필터링
+      const filtered = roleFilter === 'all' ? vacations : vacations.filter((v: any) => v.role === roleFilter);
+      setDateVacations(filtered);
       
-      console.log(`${formattedDate} 날짜의 휴무 데이터:`, vacations);
-      setDateVacations(vacations);
+      let dateRequests = data.vacations || [];
+      
+      // roleFilter에 따라 한 번 더 필터링
+      if (roleFilter !== 'all') {
+        dateRequests = dateRequests.filter((req: VacationRequest) => req.role === roleFilter);
+      }
+      
+      // 현재 필터 상태를 고려하여 요청 목록 갱신
+      if (statusFilter === 'all') {
+        setAllRequests(dateRequests);
+      } else {
+        // 상태별로 필터링
+        const filteredByStatus = dateRequests.filter((req: VacationRequest) => req.status === statusFilter);
+        setAllRequests(filteredByStatus);
+      }
+      
+      console.log(`${formattedDate} 날짜 필터 적용됨:`, dateRequests.length);
     } catch (error) {
       console.error('상세 정보 가져오기 오류:', error);
       setDateVacations([]);
@@ -277,7 +299,7 @@ export default function AdminPage() {
       const formattedDate = format(date, 'yyyy-MM-dd');
       
       // 서버에서 해당 날짜의 요청을 가져오기
-      const response = await fetch(`/api/vacation/date/${formattedDate}`, {
+      const response = await fetch(`/api/vacation/date/${formattedDate}?role=${roleFilter}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -290,7 +312,12 @@ export default function AdminPage() {
       }
       
       const data = await response.json();
-      const dateRequests = data.vacations || [];
+      let dateRequests = data.vacations || [];
+      
+      // roleFilter에 따라 한 번 더 필터링
+      if (roleFilter !== 'all') {
+        dateRequests = dateRequests.filter((req: VacationRequest) => req.role === roleFilter);
+      }
       
       // 현재 필터 상태를 고려하여 요청 목록 갱신
       if (statusFilter === 'all') {

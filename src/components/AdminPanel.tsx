@@ -120,7 +120,10 @@ const AdminPanel = ({ currentDate, onClose, onUpdateSuccess, vacationLimits, onL
       // 각 제한 항목별로 onLimitSet 호출 (role 포함)
       if (onLimitSet) {
         for (const limit of saveLimits) {
-          await onLimitSet(new Date(limit.date), limit.maxPeople, limit.role);
+          const prev = vacationLimits?.[`${limit.date}_${limit.role}`];
+          if (!prev || prev.maxPeople !== limit.maxPeople) {
+            await onLimitSet(new Date(limit.date), limit.maxPeople, limit.role);
+          }
         }
       }
       const response = await fetch(`/api/vacation/limits?_t=${timestamp}`, {

@@ -247,7 +247,7 @@ const VacationCalendar: React.FC<VacationCalendarProps> = ({
       const formattedDate = format(date, 'yyyy-MM-dd');
       console.log(`선택된 날짜 데이터 가져오기: ${formattedDate}`);
       
-      const cacheParam = `?_t=${Date.now()}&_r=${Math.random().toString().substring(2, 8)}`;
+      const cacheParam = `?role=${roleFilter}&_t=${Date.now()}&_r=${Math.random().toString().substring(2, 8)}`;
       
       const response = await fetch(`/api/vacation/date/${formattedDate}${cacheParam}`, {
         method: 'GET',
@@ -264,7 +264,8 @@ const VacationCalendar: React.FC<VacationCalendarProps> = ({
       }
       
       const data = await response.json();
-      console.log('날짜 상세 데이터:', data);
+      console.log(`날짜 상세 데이터 (${roleFilter}):`, data);
+      console.log(`선택된 날짜 ${formattedDate}의 제한 인원(${roleFilter}): ${data.maxPeople}`);
       
       if (data) {
         console.log(`CalendarData 현재 키:`, Object.keys(calendarData));
@@ -272,8 +273,9 @@ const VacationCalendar: React.FC<VacationCalendarProps> = ({
         const newCalendarData = { ...calendarData };
         
         const dateKey = data.date || formattedDate;
-        console.log(`API 응답의 날짜 키: ${dateKey}, 요청한 날짜: ${formattedDate}`);
+        console.log(`API 응답의 날짜 키: ${dateKey}, 요청한 날짜: ${formattedDate}, 역할: ${roleFilter}`);
         
+        // 이미 API에서 role에 따라 필터링된 데이터를 반환하므로 추가 필터링 불필요
         newCalendarData[formattedDate] = {
           date: formattedDate,
           vacations: data.vacations || [],

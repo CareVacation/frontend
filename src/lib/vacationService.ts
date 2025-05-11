@@ -155,74 +155,40 @@ export async function getVacationLimitsForMonth(year: number, month: number) {
   }
 }
 
-// 특정 날짜의 휴가 제한 가져오기
-export async function getVacationLimitForDate(date: Date): Promise<VacationLimit | null> {
+// 특정 날짜+role의 휴가 제한 가져오기
+export async function getVacationLimitForDate(date: Date, role: 'caregiver' | 'office'): Promise<VacationLimit | null> {
   try {
     const formattedDate = format(date, 'yyyy-MM-dd');
-    console.log(`[VacationService] 날짜 ${formattedDate}에 대한 휴가 제한 조회 시작`);
-    
-    // 1. 먼저 날짜 형식 ID를 직접 사용하여 문서 조회
-    console.log(`[VacationService] 날짜 ID로 직접 조회 시도: ${formattedDate}`);
-    const directDocRef = doc(db, VACATION_LIMITS_COLLECTION, formattedDate);
-    const directDoc = await getDoc(directDocRef);
-    
-    // 날짜 ID 문서가 존재하면 이를 우선적으로 사용
-    if (directDoc.exists()) {
-      const data = directDoc.data();
-      console.log(`[VacationService] 날짜 ID 문서 발견! ID=${directDoc.id}, 인원=${data.maxPeople}`);
-      
+    console.log(`[VacationService] 날짜+role로 휴가 제한 조회: ${formattedDate}_${role}`);
+    // 날짜+role 조합으로 문서 조회
+    const docId = `${formattedDate}_${role}`;
+    const docRef = doc(db, VACATION_LIMITS_COLLECTION, docId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      const data = docSnap.data();
       return {
-        id: directDoc.id,
+        id: docSnap.id,
         date: data.date || formattedDate,
         maxPeople: typeof data.maxPeople === 'number' ? data.maxPeople : (data.maxPeople !== undefined ? parseInt(data.maxPeople, 10) : 3),
-        role: data.role ?? 'caregiver'
+        role: data.role ?? role
       };
     }
-    
-    // 2. 날짜 ID 문서가 없으면 날짜 필드로 쿼리
-    console.log(`[VacationService] 쿼리 조건: date == "${formattedDate}"`);
-    const limitsRef = collection(db, VACATION_LIMITS_COLLECTION);
-    const exactQuery = query(
-      limitsRef,
-      where('date', '==', formattedDate),
-      limit(1)
-    );
-    
-    // 쿼리 실행
-    const snapshot = await getDocs(exactQuery);
-    console.log(`[VacationService] 쿼리 결과: ${snapshot.size}개 문서 발견`);
-    
-    // 쿼리 결과가 있는 경우
-    if (!snapshot.empty) {
-      const doc = snapshot.docs[0];
-      const data = doc.data();
-      
-      console.log(`[VacationService] 쿼리에서 문서 발견! ID=${doc.id}, 날짜=${data.date}, 인원=${data.maxPeople}`);
-      
-      return {
-        id: doc.id,
-        date: data.date,
-        maxPeople: typeof data.maxPeople === 'number' ? data.maxPeople : (data.maxPeople !== undefined ? parseInt(data.maxPeople, 10) : 3),
-        role: data.role ?? 'caregiver'
-      };
-    }
-    
     // 결과가 없는 경우 기본값 반환
-    console.log(`[VacationService] 날짜 ${formattedDate}에 대한 휴가 제한을 찾을 수 없음, 기본값(3) 반환`);
+    console.log(`[VacationService] 날짜+role ${docId}에 대한 휴가 제한을 찾을 수 없음, 기본값(3) 반환`);
     return {
-      id: '',
+      id: docId,
       date: formattedDate,
       maxPeople: 3,
-      role: 'caregiver'
+      role
     };
   } catch (error) {
     console.error(`[VacationService] 휴가 제한 조회 오류 (날짜: ${format(date, 'yyyy-MM-dd')}):`, error);
     // 에러가 발생해도 기본값 반환
     return {
-      id: '',
+      id: `${format(date, 'yyyy-MM-dd')}_${role}`,
       date: format(date, 'yyyy-MM-dd'),
       maxPeople: 3,
-      role: 'caregiver'
+      role
     };
   }
 }
@@ -448,4 +414,5 @@ export async function getVacationLimitsForMonthRange(startDateStr: string, endDa
     console.error('[VacationService] 날짜 범위 휴가 제한 조회 중 오류:', error);
     throw error;
   }
-} 
+}
+
