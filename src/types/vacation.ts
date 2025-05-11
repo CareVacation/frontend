@@ -9,6 +9,7 @@ export interface VacationRequest {
   role: 'caregiver' | 'office' | 'all';  // 요양보호사, 사무실, 전체
   createdAt: string;
   updatedAt: string;
+  password?: string;  // 등록 시 입력한 비밀번호 (삭제 시 확인용)
 }
 
 export interface VacationLimit {

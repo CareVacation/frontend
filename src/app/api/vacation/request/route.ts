@@ -21,6 +21,14 @@ export async function POST(request: Request) {
       );
     }
     
+    // 비밀번호 검증
+    if (!data.password) {
+      return NextResponse.json(
+        { error: '삭제를 위한 비밀번호가 필요합니다.' },
+        { status: 400 }
+      );
+    }
+    
     // userId 생성 (실제 앱에서는 인증 시스템에서 가져옴)
     const userId = `user_${Date.now()}`;
     
@@ -33,6 +41,7 @@ export async function POST(request: Request) {
       status: 'pending', // 기본값은 대기 상태
       type: data.type || 'regular',
       role: data.role, // 직원 유형 추가
+      password: data.password, // 비밀번호 추가
       updatedAt: new Date().toISOString()
     });
     

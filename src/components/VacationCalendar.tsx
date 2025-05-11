@@ -124,7 +124,8 @@ const VacationCalendar: React.FC<VacationCalendarProps> = ({
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
           'Expires': '0'
-        }
+        },
+        cache: 'no-store'
       });
 
       if (signal.aborted) {
@@ -247,7 +248,7 @@ const VacationCalendar: React.FC<VacationCalendarProps> = ({
       const formattedDate = format(date, 'yyyy-MM-dd');
       console.log(`선택된 날짜 데이터 가져오기: ${formattedDate}`);
       
-      const cacheParam = `?role=${roleFilter}&_t=${Date.now()}&_r=${Math.random().toString().substring(2, 8)}`;
+      const cacheParam = `?role=${roleFilter}&_t=${Date.now()}&_r=${Math.random().toString(36).substring(2, 8)}`;
       
       const response = await fetch(`/api/vacation/date/${formattedDate}${cacheParam}`, {
         method: 'GET',
@@ -256,7 +257,8 @@ const VacationCalendar: React.FC<VacationCalendarProps> = ({
           'Cache-Control': 'no-store, no-cache',
           'Pragma': 'no-cache',
           'X-Request-Time': new Date().toISOString()
-        }
+        },
+        cache: 'no-store'
       });
       
       if (!response.ok) {
@@ -383,6 +385,14 @@ const VacationCalendar: React.FC<VacationCalendarProps> = ({
   useEffect(() => {
     console.log('캘린더 마운트됨 - 초기 데이터 로드 시작');
     fetchCalendarData(currentDate);
+    
+    // 30초마다 자동 새로고침
+    const refreshInterval = setInterval(() => {
+      console.log('자동 새로고침 실행');
+      fetchCalendarData(currentDate);
+    }, 30000);
+    
+    return () => clearInterval(refreshInterval);
   }, [fetchCalendarData, currentDate]);
 
   // 월 변경시 데이터 로드

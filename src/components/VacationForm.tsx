@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { motion } from 'framer-motion';
 import { VacationFormProps } from '@/types/vacation';
-import { FiUser, FiBriefcase, FiUsers, FiCalendar, FiClock } from 'react-icons/fi';
+import { FiUser, FiBriefcase, FiUsers, FiCalendar, FiClock, FiLock } from 'react-icons/fi';
 
 const VacationForm: React.FC<VacationFormProps> = ({ 
   initialDate, 
@@ -15,11 +15,13 @@ const VacationForm: React.FC<VacationFormProps> = ({
 }) => {
   const [userName, setUserName] = useState('');
   const [reason, setReason] = useState('');
+  const [password, setPassword] = useState('');
   const [type, setType] = useState<'regular' | 'mandatory'>('regular');
   const [role, setRole] = useState<'caregiver' | 'office' | 'all'>(roleFilter && roleFilter !== 'all' ? roleFilter : 'caregiver');
   const [errors, setErrors] = useState({
     userName: '',
-    reason: ''
+    reason: '',
+    password: ''
   });
 
   useEffect(() => {
@@ -31,7 +33,8 @@ const VacationForm: React.FC<VacationFormProps> = ({
   const validate = (): boolean => {
     const newErrors = {
       userName: '',
-      reason: ''
+      reason: '',
+      password: ''
     };
     let isValid = true;
 
@@ -42,6 +45,11 @@ const VacationForm: React.FC<VacationFormProps> = ({
 
     if (type === 'mandatory' && !reason.trim()) {
       newErrors.reason = '휴무 사유를 입력해주세요';
+      isValid = false;
+    }
+    
+    if (!password.trim()) {
+      newErrors.password = '비밀번호를 입력해주세요';
       isValid = false;
     }
 
@@ -69,6 +77,7 @@ const VacationForm: React.FC<VacationFormProps> = ({
           body: JSON.stringify({
             userName: userName.trim(),
             reason: reason.trim(),
+            password: password.trim(),
             type,
             role,
             date: initialDate ? format(initialDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
@@ -132,6 +141,26 @@ const VacationForm: React.FC<VacationFormProps> = ({
           />
           {errors.userName && (
             <p className="mt-1 text-xs sm:text-sm text-red-500">{errors.userName}</p>
+          )}
+        </div>
+        
+        <div>
+          <label htmlFor="password" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+            비밀번호 * <span className="text-xs text-gray-500">(휴가 삭제시 필요)</span>
+          </label>
+          <input
+            type="password"
+            id="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={`w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm sm:text-base ${
+              errors.password ? 'border-red-500' : 'border-gray-300'
+            }`}
+            placeholder="비밀번호를 입력하세요"
+            disabled={isSubmitting}
+          />
+          {errors.password && (
+            <p className="mt-1 text-xs sm:text-sm text-red-500">{errors.password}</p>
           )}
         </div>
         

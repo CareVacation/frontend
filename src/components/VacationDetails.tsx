@@ -5,7 +5,7 @@ import { ko } from 'date-fns/locale';
 import { VacationDetailsProps, VacationRequest } from '@/types/vacation';
 import VacationForm from './VacationForm';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiX, FiCalendar, FiUsers, FiClock, FiCheck, FiAlertCircle, FiSend, FiUser, FiBriefcase, FiUserPlus } from 'react-icons/fi';
+import { FiX, FiCalendar, FiUsers, FiClock, FiCheck, FiAlertCircle, FiSend, FiUser, FiBriefcase, FiUserPlus, FiTrash2, FiLock } from 'react-icons/fi';
 
 const VacationDetails: React.FC<VacationDetailsProps> = ({
   date,
@@ -20,6 +20,11 @@ const VacationDetails: React.FC<VacationDetailsProps> = ({
   const [showForm, setShowForm] = useState(false);
   const [sortedVacations, setSortedVacations] = useState<VacationRequest[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedVacation, setSelectedVacation] = useState<VacationRequest | null>(null);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     // 휴무 요청을 상태별로 정렬 (승인됨 -> 대기중 -> 거부됨)
@@ -47,6 +52,72 @@ const VacationDetails: React.FC<VacationDetailsProps> = ({
 
   const handleFormCancel = () => {
     setShowForm(false);
+  };
+
+  const handleDeleteClick = (vacation: VacationRequest) => {
+    setSelectedVacation(vacation);
+    setShowDeleteModal(true);
+    setDeletePassword('');
+    setDeleteError('');
+  };
+
+  const handleDeleteModalClose = () => {
+    setShowDeleteModal(false);
+    setSelectedVacation(null);
+    setDeletePassword('');
+    setDeleteError('');
+  };
+
+  const handleDeleteVacation = async () => {
+    if (!selectedVacation) return;
+
+    if (!deletePassword.trim()) {
+      setDeleteError('비밀번호를 입력해주세요');
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError('');
+
+    try {
+      const response = await fetch(`/api/vacation/delete/${selectedVacation.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          password: deletePassword
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '삭제 중 오류가 발생했습니다');
+      }
+
+      // 성공적으로 삭제됨
+      setShowDeleteModal(false);
+      setSelectedVacation(null);
+      setDeletePassword('');
+      
+      // 데이터 새로고침
+      if (onVacationUpdated) {
+        await onVacationUpdated();
+      }
+    } catch (error) {
+      console.error('휴가 삭제 중 오류:', error);
+      if (error instanceof Error) {
+        if (error.message.includes('비밀번호가 일치하지 않습니다')) {
+          setDeleteError('비밀번호가 일치하지 않습니다');
+        } else {
+          setDeleteError(error.message || '삭제 중 오류가 발생했습니다');
+        }
+      } else {
+        setDeleteError('삭제 중 오류가 발생했습니다');
+      }
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   // 유효한(승인됨 또는 대기중) 휴무 수 계산
@@ -128,19 +199,28 @@ const VacationDetails: React.FC<VacationDetailsProps> = ({
                         key={vacation.id}
                         initial={{ opacity: 0, y: 5 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="p-2 sm:p-3 bg-gray-50 rounded-lg border border-gray-100"
+                        className="p-2 sm:p-3 bg-gray-50 rounded-lg border border-gray-100 relative"
                       >
                         <div className="flex justify-between items-center mb-1 sm:mb-2">
                           <div className="font-medium text-gray-800 text-sm sm:text-base">{vacation.userName}</div>
-                          <span className={`text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full ${
-                            vacation.status === 'approved' 
-                              ? 'bg-green-100 text-green-600' 
-                              : vacation.status === 'pending' 
-                                ? 'bg-yellow-100 text-yellow-600'
-                                : 'bg-red-100 text-red-600'
-                          }`}>
-                            {vacation.status === 'approved' ? '승인됨' : vacation.status === 'pending' ? '대기중' : '거부됨'}
-                          </span>
+                          <div className="flex items-center gap-1 sm:gap-2">
+                            <span className={`text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full ${
+                              vacation.status === 'approved' 
+                                ? 'bg-green-100 text-green-600' 
+                                : vacation.status === 'pending' 
+                                  ? 'bg-yellow-100 text-yellow-600'
+                                  : 'bg-red-100 text-red-600'
+                            }`}>
+                              {vacation.status === 'approved' ? '승인됨' : vacation.status === 'pending' ? '대기중' : '거부됨'}
+                            </span>
+                            <button 
+                              onClick={() => handleDeleteClick(vacation)} 
+                              className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                              aria-label="휴가 삭제"
+                            >
+                              <FiTrash2 size={14} className="sm:w-4 sm:h-4" />
+                            </button>
+                          </div>
                         </div>
                         
                         <div className="flex flex-wrap gap-2 mt-1.5">
@@ -209,6 +289,88 @@ const VacationDetails: React.FC<VacationDetailsProps> = ({
           </>
         )}
       </motion.div>
+
+      {/* 삭제 확인 모달 */}
+      <AnimatePresence>
+        {showDeleteModal && selectedVacation && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-white rounded-lg shadow-xl p-4 sm:p-6 max-w-sm w-full"
+            >
+              <div className="text-center mb-4">
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-3">
+                  <FiTrash2 className="h-6 w-6 text-red-600" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-1">휴무 삭제 확인</h3>
+                <p className="text-sm text-gray-500">
+                  <strong>{selectedVacation.userName}</strong>님의 <strong>{format(new Date(selectedVacation.date), 'yyyy년 MM월 dd일')}</strong> 휴무를 삭제하시겠습니까?
+                </p>
+              </div>
+              
+              <div className="mb-4">
+                <label htmlFor="deletePassword" className="block text-sm font-medium text-gray-700 mb-1">
+                  <div className="flex items-center">
+                    <FiLock className="mr-1.5" size={14} />
+                    <span>비밀번호 확인</span>
+                  </div>
+                </label>
+                <input
+                  type="password"
+                  id="deletePassword"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  placeholder="등록 시 입력한 비밀번호를 입력하세요"
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 text-sm ${
+                    deleteError ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {deleteError && (
+                  <p className="mt-1 text-xs text-red-500">{deleteError}</p>
+                )}
+              </div>
+              
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={handleDeleteModalClose}
+                  className="px-3 py-1.5 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors text-sm"
+                  disabled={isDeleting}
+                >
+                  취소
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteVacation}
+                  className={`px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm ${
+                    isDeleting ? 'opacity-70 cursor-not-allowed' : ''
+                  }`}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? (
+                    <span className="flex items-center">
+                      <svg className="animate-spin h-3 w-3 mr-1.5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      삭제 중...
+                    </span>
+                  ) : (
+                    '삭제하기'
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 };

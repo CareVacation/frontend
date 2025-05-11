@@ -16,6 +16,10 @@ export async function getVacationsForMonth(year: number, month: number) {
   const endDateStr = format(endDate, 'yyyy-MM-dd');
 
   try {
+    // 캐시 방지를 위해 타임스탬프 추가
+    const timestamp = Date.now();
+    console.log(`getVacationsForMonth 호출: ${year}년 ${month+1}월 (${timestamp})`);
+    
     const vacationsRef = collection(db, VACATIONS_COLLECTION);
     const q = query(
       vacationsRef,
@@ -37,6 +41,7 @@ export async function getVacationsForMonth(year: number, month: number) {
       } as VacationRequest);
     });
     
+    console.log(`${year}년 ${month+1}월 휴가 데이터 ${vacations.length}건 로드 완료`);
     return vacations;
   } catch (error) {
     console.error('월별 휴가 데이터 조회 중 오류:', error);

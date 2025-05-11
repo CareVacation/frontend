@@ -445,7 +445,9 @@ export default function AdminPage() {
           headers: {
             'Content-Type': 'application/json',
             'Cache-Control': 'no-store, max-age=0, must-revalidate'
-          }
+          },
+          body: JSON.stringify({ isAdmin: true }),
+          cache: 'no-store'
         });
         
         if (!response.ok) {
@@ -458,6 +460,9 @@ export default function AdminPage() {
           fetchMonthData(),
           selectedDate ? fetchDateDetails(selectedDate) : Promise.resolve()
         ]);
+        
+        // 추가로 VacationCalendar 컴포넌트 강제 새로고침을 위해 currentDate 업데이트
+        setCurrentDate(new Date(currentDate));
         
         showNotification('휴무 신청이 삭제되었습니다.', 'success');
       }
