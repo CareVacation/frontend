@@ -47,6 +47,7 @@ export interface VacationDetailsProps {
   onVacationUpdated: () => Promise<void>;
   maxPeople?: number;
   roleFilter?: 'all' | 'caregiver' | 'office';
+  isAdmin?: boolean;
 }
 
 export interface VacationFormProps {

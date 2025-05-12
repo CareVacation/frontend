@@ -132,7 +132,7 @@ const VacationForm: React.FC<VacationFormProps> = ({
             id="userName"
             value={userName}
             onChange={(e) => setUserName(e.target.value)}
-            className={`w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm sm:text-base ${
+            className={`w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm sm:text-base text-gray-800 font-medium ${
               errors.userName ? 'border-red-500' : 'border-gray-300'
             }`}
             placeholder="이름을 입력하세요"
@@ -153,7 +153,7 @@ const VacationForm: React.FC<VacationFormProps> = ({
             id="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className={`w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm sm:text-base ${
+            className={`w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm sm:text-base text-gray-800 font-medium ${
               errors.password ? 'border-red-500' : 'border-gray-300'
             }`}
             placeholder="비밀번호를 입력하세요"
@@ -173,7 +173,7 @@ const VacationForm: React.FC<VacationFormProps> = ({
             id="reason"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            className={`w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm sm:text-base ${
+            className={`w-full px-3 sm:px-4 py-2 sm:py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm sm:text-base text-gray-800 font-medium ${
               errors.reason ? 'border-red-500' : 'border-gray-300'
             }`}
             rows={4}

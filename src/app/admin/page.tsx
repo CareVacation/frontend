@@ -8,6 +8,7 @@ import { getVacationsForMonth, getVacationLimitsForMonth, setVacationLimit } fro
 import { motion, AnimatePresence } from 'framer-motion';
 import VacationCalendar from '@/components/VacationCalendar';
 import AdminPanel from '@/components/AdminPanel';
+import VacationDetails from '@/components/VacationDetails';
 
 export default function AdminPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -973,7 +974,9 @@ export default function AdminPage() {
                               </span>
                             </div>
                             
-                            <p className="mt-2 text-sm bg-gray-50 p-2 rounded border border-gray-100">{request.reason}</p>
+                            <p className="mt-2 text-sm bg-gray-100 p-2 rounded border border-gray-200 text-gray-800 font-medium">
+                              {request.reason ? request.reason : <span className="text-gray-500">사유 없음</span>}
+                            </p>
                             <p className="text-xs text-gray-500 mt-2">신청일: {format(new Date(request.createdAt), 'yyyy-MM-dd HH:mm')}</p>
                           </div>
                           <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${

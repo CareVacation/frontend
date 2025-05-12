@@ -293,6 +293,7 @@ export default function Home() {
               }
               onVacationUpdated={handleVacationUpdated}
               roleFilter={roleFilter}
+              isAdmin={false}
             />
           </div>
         )}

@@ -16,6 +16,7 @@ const VacationDetails: React.FC<VacationDetailsProps> = ({
   maxPeople = 5,
   onVacationUpdated,
   roleFilter,
+  isAdmin = false,
 }) => {
   const [showForm, setShowForm] = useState(false);
   const [sortedVacations, setSortedVacations] = useState<VacationRequest[]>([]);
@@ -257,7 +258,7 @@ const VacationDetails: React.FC<VacationDetailsProps> = ({
                           </div>
                         </div>
 
-                        {vacation.reason && (
+                        {vacation.reason && isAdmin && (
                           <div className="mt-1.5 sm:mt-2 text-xs sm:text-sm text-gray-600 bg-white p-1.5 sm:p-2 rounded border border-gray-100">
                             {vacation.reason}
                           </div>
