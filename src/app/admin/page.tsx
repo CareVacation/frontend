@@ -37,6 +37,9 @@ export default function AdminPage() {
   // 이름 필터링 상태 추가
   const [nameFilter, setNameFilter] = useState<string | null>(null);
 
+  // 정렬 방식 상태 추가
+  const [sortOrder, setSortOrder] = useState<'latest' | 'oldest' | 'vacation-date-asc' | 'vacation-date-desc' | 'name'>('latest');
+
   // 초기 로딩 시 인증 확인
   useEffect(() => {
     // 세션 스토리지에서 인증 상태 확인
@@ -74,8 +77,41 @@ export default function AdminPage() {
       filtered = filtered.filter(request => request.userName === nameFilter);
     }
     
-    return filtered;
-  }, [allRequests, statusFilter, roleFilter, nameFilter]);
+    // 정렬 적용
+    let sorted = [...filtered];
+    switch(sortOrder) {
+      case 'latest':
+        // 신청일 최신순 (createdAt 기준 내림차순)
+        sorted.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+        break;
+      case 'oldest':
+        // 신청일 오래된순 (createdAt 기준 오름차순)
+        sorted.sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+        break;
+      case 'vacation-date-asc':
+        // 휴무일 오래된순 (date 기준 오름차순)
+        sorted.sort((a, b) => {
+          const dateA = a.date || '';
+          const dateB = b.date || '';
+          return dateA.localeCompare(dateB);
+        });
+        break;
+      case 'vacation-date-desc':
+        // 휴무일 최신순 (date 기준 내림차순)
+        sorted.sort((a, b) => {
+          const dateA = a.date || '';
+          const dateB = b.date || '';
+          return dateB.localeCompare(dateA);
+        });
+        break;
+      case 'name':
+        // 이름순 (userName 기준 오름차순)
+        sorted.sort((a, b) => (a.userName || '').localeCompare(b.userName || ''));
+        break;
+    }
+    
+    return sorted;
+  }, [allRequests, statusFilter, roleFilter, nameFilter, sortOrder]);
 
   const fetchInitialData = () => {
     fetchMonthData();
@@ -752,7 +788,7 @@ export default function AdminPage() {
                   <h2 className="text-2xl font-bold text-gray-800">
                     {selectedDate 
                       ? `${format(selectedDate, 'yyyy년 MM월 dd일', { locale: ko })} 휴무` 
-                      : '휴무 신청 목록'}
+                      : `${format(currentDate, 'yyyy년 M월')} 휴무 신청 목록`}
                   </h2>
 
                   {/* 필터 리셋 버튼 */}
@@ -873,6 +909,29 @@ export default function AdminPage() {
                         </svg>
                         사무실
                       </button>
+                    </div>
+                  </div>
+                  
+                  {/* 정렬 옵션 UI - 직원 유형 필터 아래로 이동 */}
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-gray-700 mb-2">정렬 방식</span>
+                    <div className="relative inline-block w-full">
+                      <select
+                        className="w-full appearance-none bg-white border border-gray-300 rounded-md pl-3 pr-8 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        value={sortOrder}
+                        onChange={(e) => setSortOrder(e.target.value as 'latest' | 'oldest' | 'vacation-date-asc' | 'vacation-date-desc' | 'name')}
+                      >
+                        <option value="latest">신청일 최신순</option>
+                        <option value="oldest">신청일 오래된순</option>
+                        <option value="vacation-date-desc">휴무일 최신순</option>
+                        <option value="vacation-date-asc">휴무일 오래된순</option>
+                        <option value="name">이름순</option>
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1018,7 +1077,7 @@ export default function AdminPage() {
                             className="px-3 py-1.5 bg-gray-700 text-white rounded-md hover:bg-gray-800 transition-colors text-sm flex items-center gap-1 shadow-sm"
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1-1h-2a1 1 0 000 2h2a1 1 0 001-1zm0 4a1 1 0 00-1-1h-2a1 1 0 000 2h2a1 1 0 001-1z" clipRule="evenodd" />
+                              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v12a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1-1h-2a1 1 0 000 2h2a1 1 0 001-1zm0 4a1 1 0 00-1-1h-2a1 1 0 000 2h2a1 1 0 001-1z" clipRule="evenodd" />
                             </svg>
                             삭제
                           </button>
