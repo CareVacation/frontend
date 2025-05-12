@@ -32,6 +32,9 @@ export default function AdminPage() {
   
   // 직원 유형 필터링 상태 추가
   const [roleFilter, setRoleFilter] = useState<'all' | 'caregiver' | 'office'>('all');
+  
+  // 이름 필터링 상태 추가
+  const [nameFilter, setNameFilter] = useState<string | null>(null);
 
   // 초기 로딩 시 인증 확인
   useEffect(() => {
@@ -65,8 +68,13 @@ export default function AdminPage() {
       filtered = filtered.filter(request => request.role === roleFilter);
     }
     
+    // 이름별 필터링
+    if (nameFilter) {
+      filtered = filtered.filter(request => request.userName === nameFilter);
+    }
+    
     return filtered;
-  }, [allRequests, statusFilter, roleFilter]);
+  }, [allRequests, statusFilter, roleFilter, nameFilter]);
 
   const fetchInitialData = () => {
     fetchMonthData();
@@ -190,7 +198,7 @@ export default function AdminPage() {
   const fetchDateDetails = async (date: Date) => {
     try {
       const formattedDate = format(date, 'yyyy-MM-dd');
-      // roleFilter를 쿼리스트링에 포함
+      // roleFilter와 nameFilter를 쿼리스트링에 포함
       const apiUrl = `/api/vacation/date/${formattedDate}?role=${roleFilter}`;
       const response = await fetch(apiUrl, {
         method: 'GET',
@@ -218,7 +226,13 @@ export default function AdminPage() {
         }
       }
       // roleFilter에 따라 한 번 더 필터링
-      const filtered = roleFilter === 'all' ? vacations : vacations.filter((v: VacationRequest) => v.role === roleFilter);
+      let filtered = roleFilter === 'all' ? vacations : vacations.filter((v: VacationRequest) => v.role === roleFilter);
+      
+      // nameFilter가 있으면 이름으로 한 번 더 필터링
+      if (nameFilter) {
+        filtered = filtered.filter((v: VacationRequest) => v.userName === nameFilter);
+      }
+      
       setDateVacations(filtered);
       
       let dateRequests = data.vacations || [];
@@ -226,6 +240,11 @@ export default function AdminPage() {
       // roleFilter에 따라 한 번 더 필터링
       if (roleFilter !== 'all') {
         dateRequests = dateRequests.filter((req: VacationRequest) => req.role === roleFilter);
+      }
+      
+      // nameFilter가 있으면 이름으로 한 번 더 필터링
+      if (nameFilter) {
+        dateRequests = dateRequests.filter((req: VacationRequest) => req.userName === nameFilter);
       }
       
       // 현재 필터 상태를 고려하여 요청 목록 갱신
@@ -317,6 +336,11 @@ export default function AdminPage() {
       // roleFilter에 따라 한 번 더 필터링
       if (roleFilter !== 'all') {
         dateRequests = dateRequests.filter((req: VacationRequest) => req.role === roleFilter);
+      }
+      
+      // nameFilter가 있으면 이름으로 한 번 더 필터링
+      if (nameFilter) {
+        dateRequests = dateRequests.filter((req: VacationRequest) => req.userName === nameFilter);
       }
       
       // 현재 필터 상태를 고려하여 요청 목록 갱신
@@ -461,8 +485,16 @@ export default function AdminPage() {
           selectedDate ? fetchDateDetails(selectedDate) : Promise.resolve()
         ]);
         
-        // 추가로 VacationCalendar 컴포넌트 강제 새로고침을 위해 currentDate 업데이트
+        // 캘린더 컴포넌트를 강제로 새로고침하기 위해 현재 날짜를 업데이트
         setCurrentDate(new Date(currentDate));
+        
+        // 1초 후에 한 번 더 데이터를 새로고침하여 캘린더가 확실히 업데이트되도록 함
+        setTimeout(async () => {
+          await fetchMonthData();
+          if (selectedDate) {
+            await fetchDateDetails(selectedDate);
+          }
+        }, 1000);
         
         showNotification('휴무 신청이 삭제되었습니다.', 'success');
       }
@@ -594,12 +626,33 @@ export default function AdminPage() {
     }
   };
 
+  // 이름 필터 토글 함수
+  const toggleNameFilter = (name: string) => {
+    if (nameFilter === name) {
+      // 이미 선택된 이름을 다시 클릭하면 필터 해제
+      setNameFilter(null);
+    } else {
+      // 새로운 이름 선택
+      setNameFilter(name);
+    }
+    
+    // 달력 데이터 새로고침을 위해 현재 날짜를 업데이트
+    // 이렇게 하면 useEffect에 의해 fetchMonthData가 다시 호출됨
+    setCurrentDate(new Date(currentDate));
+    
+    // 현재 선택된 날짜가 있다면 해당 날짜의 상세 정보도 새로고침
+    if (selectedDate) {
+      fetchDateDetails(selectedDate);
+    }
+  };
+
   // 필터 초기화 함수 개선
   const resetFilter = async () => {
     // 모든 요청을 다시 불러오기
     await fetchAllRequests();
     setStatusFilter('all');
     setRoleFilter('all');
+    setNameFilter(null);
     setSelectedDate(null);
     setShowDetails(false);
   };
@@ -660,6 +713,26 @@ export default function AdminPage() {
                   <button onClick={() => setRoleFilter('caregiver')} className={`px-4 py-2 rounded-full text-sm font-semibold border ${roleFilter === 'caregiver' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300'}`}>요양보호사</button>
                   <button onClick={() => setRoleFilter('office')} className={`px-4 py-2 rounded-full text-sm font-semibold border ${roleFilter === 'office' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-300'}`}>사무실</button>
                 </div>
+                
+                {/* 이름 필터가 있을 경우 표시 */}
+                {nameFilter && (
+                  <div className="flex justify-center mb-4">
+                    <div className="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-lg flex items-center gap-2">
+                      <span>
+                        <strong>{nameFilter}</strong>님의 휴가만 표시 중
+                      </span>
+                      <button 
+                        onClick={() => setNameFilter(null)} 
+                        className="text-indigo-500 hover:text-indigo-700"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
                 <VacationCalendar
                   onDateSelect={handleDateSelect}
                   isAdmin={true}
@@ -667,6 +740,7 @@ export default function AdminPage() {
                   currentDate={currentDate}
                   setCurrentDate={setCurrentDate}
                   roleFilter={roleFilter}
+                  nameFilter={nameFilter}
                 />
               </div>
             </div>
@@ -826,6 +900,7 @@ export default function AdminPage() {
                             '거부된 휴무 신청이 없습니다'
                           }`
                       }
+                      {nameFilter && ` (${nameFilter})`}
                     </p>
                   </div>
                 ) : (
@@ -835,7 +910,17 @@ export default function AdminPage() {
                         <div className="flex justify-between items-start">
                           <div>
                             <div className="flex items-center gap-2">
-                              <h3 className="font-semibold text-lg text-gray-900">{request.userName}</h3>
+                              <h3 
+                                className="font-semibold text-lg text-gray-900 cursor-pointer hover:text-indigo-600 hover:underline"
+                                onClick={() => toggleNameFilter(request.userName)}
+                              >
+                                {request.userName}
+                                {nameFilter === request.userName && (
+                                  <span className="ml-2 text-xs bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full">
+                                    필터링됨
+                                  </span>
+                                )}
+                              </h3>
                               
                               {/* 직원 유형 뱃지 */}
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${

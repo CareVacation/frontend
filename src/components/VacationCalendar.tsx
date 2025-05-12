@@ -14,6 +14,7 @@ interface VacationCalendarProps extends CalendarProps {
   currentDate: Date;
   setCurrentDate: (date: Date | SetStateAction<Date>) => void;
   roleFilter?: 'all' | 'caregiver' | 'office';
+  nameFilter?: string | null;
 }
 
 const VacationCalendar: React.FC<VacationCalendarProps> = ({
@@ -24,6 +25,7 @@ const VacationCalendar: React.FC<VacationCalendarProps> = ({
   currentDate,
   setCurrentDate,
   roleFilter = 'all',
+  nameFilter = null,
 }) => {
   const [calendarData, setCalendarData] = useState<VacationData>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -115,7 +117,14 @@ const VacationCalendar: React.FC<VacationCalendarProps> = ({
       console.log(`요청 월: ${requestMonth}`);
       console.log(`요청 날짜 범위: ${startDateStr} ~ ${endDateStr}`);
 
-      const url = `/api/vacation/calendar?startDate=${startDateStr}&endDate=${endDateStr}&roleFilter=${roleFilter}&_t=${Date.now()}&_r=${requestId}&_retry=${retry}`;
+      // nameFilter가 있을 경우 URL에 추가
+      let url = `/api/vacation/calendar?startDate=${startDateStr}&endDate=${endDateStr}&roleFilter=${roleFilter}&_t=${Date.now()}&_r=${requestId}&_retry=${retry}`;
+      
+      if (nameFilter) {
+        url += `&nameFilter=${encodeURIComponent(nameFilter)}`;
+        console.log(`이름 필터 적용: ${nameFilter}`);
+      }
+      
       console.log(`캘린더 API 요청 URL: ${url}`);
       
       const response = await fetch(url, {
@@ -241,14 +250,20 @@ const VacationCalendar: React.FC<VacationCalendarProps> = ({
         setIsMonthChanging(false);
       }
     }
-  }, [roleFilter, MAX_RETRY_COUNT, MAX_RETRY_DELAY]);
+  }, [roleFilter, MAX_RETRY_COUNT, MAX_RETRY_DELAY, nameFilter]);
 
   const fetchSelectedDateData = async (date: Date) => {
     try {
       const formattedDate = format(date, 'yyyy-MM-dd');
       console.log(`선택된 날짜 데이터 가져오기: ${formattedDate}`);
       
-      const cacheParam = `?role=${roleFilter}&_t=${Date.now()}&_r=${Math.random().toString(36).substring(2, 8)}`;
+      // nameFilter가 있을 경우 URL에 추가
+      let cacheParam = `?role=${roleFilter}&_t=${Date.now()}&_r=${Math.random().toString(36).substring(2, 8)}`;
+      
+      if (nameFilter) {
+        cacheParam += `&nameFilter=${encodeURIComponent(nameFilter)}`;
+        console.log(`이름 필터 적용: ${nameFilter}`);
+      }
       
       const response = await fetch(`/api/vacation/date/${formattedDate}${cacheParam}`, {
         method: 'GET',
@@ -541,6 +556,11 @@ const VacationCalendar: React.FC<VacationCalendarProps> = ({
     
     if (roleFilter !== 'all') {
       vacations = vacations.filter(vacation => vacation.role === roleFilter);
+    }
+    
+    // 이름 필터링 추가
+    if (nameFilter) {
+      vacations = vacations.filter(vacation => vacation.userName === nameFilter);
     }
     
     if (vacations.length > 0) {

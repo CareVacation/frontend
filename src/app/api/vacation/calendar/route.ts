@@ -25,13 +25,15 @@ export async function GET(request: NextRequest) {
     const startDate = url.searchParams.get('startDate');
     const endDate = url.searchParams.get('endDate');
     const roleFilter = url.searchParams.get('roleFilter') || 'all';
+    // 이름 필터 파라미터 추가
+    const nameFilter = url.searchParams.get('nameFilter');
     // 캐시 무효화를 위한 타임스탬프 파라미터 (무시됨)
     const timestamp = url.searchParams.get('_t');
     const requestId = url.searchParams.get('_r');
     const retryCount = parseInt(url.searchParams.get('_retry') || '0');
 
     console.log(`[API] 휴가 캘린더 요청 시작 - ID: ${requestId || 'unknown'}, 시도: ${retryCount}`);
-    console.log(`[API] 요청 날짜 범위: ${startDate} ~ ${endDate}, 필터: ${roleFilter}`);
+    console.log(`[API] 요청 날짜 범위: ${startDate} ~ ${endDate}, 역할 필터: ${roleFilter}, 이름 필터: ${nameFilter || 'none'}`);
 
     // 파라미터 유효성 검사
     if (!startDate || !endDate) {
@@ -69,6 +71,14 @@ export async function GET(request: NextRequest) {
           vacation.role === roleFilter || vacation.role === 'all'
         );
         console.log(`[API] 직원 유형 필터링 적용 (${roleFilter}): ${filteredVacations.length}건`);
+      }
+
+      // 이름별 필터링
+      if (nameFilter) {
+        filteredVacations = filteredVacations.filter(vacation => 
+          vacation.userName === nameFilter
+        );
+        console.log(`[API] 이름 필터링 적용 (${nameFilter}): ${filteredVacations.length}건`);
       }
 
       // 날짜별로 휴가 데이터 정리

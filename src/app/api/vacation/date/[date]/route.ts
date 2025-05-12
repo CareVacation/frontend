@@ -26,8 +26,11 @@ export async function GET(
     const roleParam = request.nextUrl.searchParams.get('role');
     const role = (roleParam === 'all' || roleParam === 'caregiver' || roleParam === 'office') 
       ? roleParam : 'caregiver';
+    
+    // nameFilter 파라미터 추출
+    const nameFilter = request.nextUrl.searchParams.get('nameFilter');
 
-    console.log(`[Date API] 날짜 ${dateParam}에 대한 휴가 요청 조회 시작 (role=${role})`);
+    console.log(`[Date API] 날짜 ${dateParam}에 대한 휴가 요청 조회 시작 (role=${role}, nameFilter=${nameFilter || 'none'})`);
 
     // 유효한 날짜 형식인지 확인
     if (!dateParam.match(/^\d{4}-\d{2}-\d{2}$/)) {
@@ -50,14 +53,20 @@ export async function GET(
     ]);
     
     // role 파라미터에 따라 휴가 신청자 필터링
-    const filteredVacations = role === 'all' 
+    let filteredVacations = role === 'all' 
       ? vacations 
       : vacations.filter(v => v.role === role);
+    
+    // nameFilter가 있을 경우 이름으로 추가 필터링
+    if (nameFilter) {
+      filteredVacations = filteredVacations.filter(v => v.userName === nameFilter);
+      console.log(`[Date API] 이름 필터 적용: ${nameFilter}, 필터링 후 ${filteredVacations.length}명`);
+    }
     
     // 해당 날짜의 총 휴가자 수 계산 (거부된 휴가는 제외)
     const totalVacationers = filteredVacations.filter(v => v.status !== 'rejected').length;
     
-    console.log(`[Date API] 필터링 후 반환: ${filteredVacations.length}명의 휴가 신청자, 제한=${limitInfo?.maxPeople}, role=${role}`);
+    console.log(`[Date API] 필터링 후 반환: ${filteredVacations.length}명의 휴가 신청자, 제한=${limitInfo?.maxPeople}, role=${role}, nameFilter=${nameFilter || 'none'}`);
     
     // 응답 데이터 포맷
     const responseData = {
