@@ -46,10 +46,13 @@ export async function GET(
     // 동시에 휴가 요청과, 휴가 제한 정보를 모두 조회
     const [vacations, limitInfo] = await Promise.all([
       getVacationsForDate(date),
-      getVacationLimitForDate(date, role === 'all' ? 'caregiver' : role as 'caregiver' | 'office').catch(error => {
-        console.error(`[Date API] 날짜 ${dateParam}의 휴가 제한 정보 조회 실패:`, error);
-        return { id: '', date: dateParam, maxPeople: 3, role: role === 'all' ? 'caregiver' : role as 'caregiver' | 'office' }; // 기본값 반환
-      })
+      // 'all'이 아닌 경우에만 제한 정보 조회
+      role !== 'all' 
+        ? getVacationLimitForDate(date, role as 'caregiver' | 'office').catch(error => {
+            console.error(`[Date API] 날짜 ${dateParam}의 휴가 제한 정보 조회 실패:`, error);
+            return { id: '', date: dateParam, maxPeople: 3, role: role as 'caregiver' | 'office' }; // 기본값 반환
+          })
+        : Promise.resolve(null)
     ]);
     
     // role 파라미터에 따라 휴가 신청자 필터링
@@ -66,15 +69,24 @@ export async function GET(
     // 해당 날짜의 총 휴가자 수 계산 (거부된 휴가는 제외)
     const totalVacationers = filteredVacations.filter(v => v.status !== 'rejected').length;
     
-    console.log(`[Date API] 필터링 후 반환: ${filteredVacations.length}명의 휴가 신청자, 제한=${limitInfo?.maxPeople}, role=${role}, nameFilter=${nameFilter || 'none'}`);
+    console.log(`[Date API] 필터링 후 반환: ${filteredVacations.length}명의 휴가 신청자, 제한=${limitInfo?.maxPeople ?? 'N/A'}, role=${role}, nameFilter=${nameFilter || 'none'}`);
     
     // 응답 데이터 포맷
-    const responseData = {
+    const responseData: {
+      date: string;
+      vacations: VacationRequest[];
+      totalVacationers: number;
+      maxPeople?: number;
+    } = {
       date: dateParam,
       vacations: filteredVacations,
-      maxPeople: limitInfo?.maxPeople !== undefined ? limitInfo.maxPeople : 3,
       totalVacationers
     };
+    
+    // role이 'all'이 아닌 경우에만 maxPeople 추가
+    if (role !== 'all' && limitInfo) {
+      responseData.maxPeople = limitInfo.maxPeople !== undefined ? limitInfo.maxPeople : 3;
+    }
     
     return new Response(JSON.stringify(responseData), { 
       status: 200, 

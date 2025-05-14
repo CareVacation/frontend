@@ -126,6 +126,9 @@ const VacationDetails: React.FC<VacationDetailsProps> = ({
   const remainingSlots = maxPeople - validVacationCount;
   const isFull = remainingSlots <= 0;
 
+  // roleFilter가 'all'인지 확인
+  const shouldShowVacationLimit = roleFilter !== 'all';
+
   return (
     <>
       <motion.div 
@@ -180,16 +183,18 @@ const VacationDetails: React.FC<VacationDetailsProps> = ({
                   <FiUsers className="mr-1.5 sm:mr-2" size={16} />
                   <span className="font-medium text-sm sm:text-base">휴무 신청 현황</span>
                 </div>
-                <div className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium flex items-center ${
-                  isFull ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
-                }`}>
-                  {isFull ? (
-                    <FiAlertCircle className="mr-0.5 sm:mr-1 w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                  ) : (
-                    <FiCheck className="mr-0.5 sm:mr-1 w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                  )}
-                  {validVacationCount}/{maxPeople}명
-                </div>
+                {shouldShowVacationLimit && (
+                  <div className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium flex items-center ${
+                    isFull ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
+                  }`}>
+                    {isFull ? (
+                      <FiAlertCircle className="mr-0.5 sm:mr-1 w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                    ) : (
+                      <FiCheck className="mr-0.5 sm:mr-1 w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                    )}
+                    {validVacationCount}/{maxPeople}명
+                  </div>
+                )}
               </div>
               
               {sortedVacations.length > 0 ? (
